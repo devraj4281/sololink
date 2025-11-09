@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { connectDB } from "./lib/db.js";
 import path from "path";
 import authRoutes from "./routes/auth.route.js";
+import messageRoute from "./routes/message.route.js";
 import { ENV } from './lib/env.js';
 import aj from './lib/arcjet.js';
 
@@ -25,6 +26,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/messages",messageRoute);
 
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
