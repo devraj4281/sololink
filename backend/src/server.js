@@ -7,9 +7,10 @@ import authRoutes from "./routes/auth.route.js";
 import messageRoute from "./routes/message.route.js";
 import { ENV } from './lib/env.js';
 import aj from './lib/arcjet.js';
+import cors from "cors";
 
 const app=express();
-
+app.use(cors({ origin: ENV.CLIENT_URL, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
