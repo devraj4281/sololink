@@ -1,7 +1,7 @@
 import cloudinary from "../lib/cloudinary.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
 import Message from "../models/Message.js";
-import User from "../models/user.model.js";
+import User from "../models/User.js";
 
 export const getAllContacts = async (req, res) => {
   try {
@@ -53,7 +53,6 @@ export const sendMessage = async (req, res) => {
 
     let imageUrl;
     if (image) {
-      // upload base64 image to cloudinary
       const uploadResponse = await cloudinary.uploader.upload(image);
       imageUrl = uploadResponse.secure_url;
     }

@@ -1,44 +1,52 @@
-import express from 'express';
-import cookieParser from 'cookie-parser'
-import dotenv from 'dotenv';
-import { connectDB } from "./lib/db.js";
+import express from "express";
+import cookieParser from "cookie-parser";
+import dotenv from "dotenv";
+import cors from "cors";
 import path from "path";
+
+import { connectDB } from "./lib/db.js";
 import authRoutes from "./routes/auth.route.js";
 import messageRoute from "./routes/message.route.js";
-import { ENV } from './lib/env.js';
-import aj from './lib/arcjet.js';
-import cors from "cors";
+import { ENV } from "./lib/env.js";
+import { app, server } from "./lib/socket.js";
 
-const app=express();
-app.use(cors({ origin: ENV.CLIENT_URL, credentials: true }));
-app.use(express.json());
-app.use(cookieParser());
 
 dotenv.config();
-console.log(ENV.PORT);
-const PORT =ENV.PORT||5000
+
+const PORT = ENV.PORT || 5000;
 const __dirname = path.resolve();
 
+// MIDDLEWARES
+app.use(
+  cors({
+    origin: ENV.CLIENT_URL,
+    credentials: true,
+  })
+);
 
-app.use(aj.expressMiddleware());
+app.use(express.json({ limit: "5mb" }));
+app.use(cookieParser());
 
+// TEST route
 app.get("/", (req, res) => {
   res.send("Hello secure world!");
 });
 
+// API routes
 app.use("/api/auth", authRoutes);
-app.use("/api/messages",messageRoute);
+app.use("/api/messages", messageRoute);
 
-if (process.env.NODE_ENV === "production") {
+// PRODUCTION setup
+if (ENV.NODE_ENV === "development") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
   app.get("*", (_, res) => {
-    res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
+    res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
   });
 }
 
-app.listen(PORT,()=>{
-    console.log(`server is running at  http://localhost:${PORT}`);
-    connectDB();
-    
+// START SERVER
+server.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+  connectDB();
 });
