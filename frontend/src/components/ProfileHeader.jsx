@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { LogOutIcon, VolumeOffIcon, Volume2Icon } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
+import DefaultAvatar from "./DefaultAvatar";
 
 const mouseClickSound = new Audio("/sounds/mouse-click.mp3");
 
@@ -36,11 +37,16 @@ function ProfileHeader() {
               className="size-14 rounded-full overflow-hidden relative group"
               onClick={() => fileInputRef.current.click()}
             >
-              <img
-                src={selectedImg || authUser.profilePic || "/avatar.png"}
-                alt="User image"
-                className="size-full object-cover"
-              />
+              {(selectedImg || authUser.profilePic) ? (
+                <img
+                  src={selectedImg || authUser.profilePic}
+                  alt="User image"
+                  className="size-full object-cover"
+                />
+              ) : (
+                <DefaultAvatar size="w-14 h-14" iconSize="w-8 h-8" />
+              )}
+
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                 <span className="text-white text-xs">Change</span>
               </div>
