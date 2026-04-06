@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import { Link } from "react-router";
-import { MailIcon, LockIcon, LoaderIcon, EyeIcon, ArrowRightIcon, QrCodeIcon, ShieldCheckIcon, GlobeIcon, CommandIcon } from "lucide-react";
+import { MailIcon, LockIcon, LoaderIcon, EyeIcon, EyeOffIcon, ArrowRightIcon, QrCodeIcon, ShieldCheckIcon, GlobeIcon, CommandIcon } from "lucide-react";
 
 function LoginPage() {
   const [formData, setFormData] = useState({ email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const { login, isLoggingIn } = useAuthStore();
 
   const handleSubmit = (e) => {
@@ -49,13 +50,23 @@ function LoginPage() {
             <div className="relative">
               <LockIcon className="v-input-icon" />
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="v-input pr-10"
                 placeholder="••••••••"
               />
-              <EyeIcon className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 size-5 cursor-pointer hover:text-slate-600" />
+              <button
+    type="button" 
+    onClick={() => setShowPassword(!showPassword)}
+    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-vblue transition-colors"
+  >
+    {showPassword ? (
+      <EyeOffIcon className="size-5" />
+    ) : (
+      <EyeIcon className="size-5" />
+    )}
+  </button>
             </div>
           </div>
 
@@ -66,10 +77,12 @@ function LoginPage() {
 
         <div className="relative my-8">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-200"></div>
+            <div className="w-full border-t border-slate-700/50"></div>
           </div>
-          <div className="relative flex justify-center text-xs font-bold text-slate-400 uppercase tracking-wider">
-            <span className="bg-white px-2">Secure Options</span>
+          <div className="relative flex justify-center text-[10px] font-bold uppercase tracking-widest">
+            <span className="px-3" style={{ background: "var(--surface-lowest)", color: "var(--on-surface-variant)" }}>
+              Secure Options
+            </span>
           </div>
         </div>
 
@@ -77,16 +90,19 @@ function LoginPage() {
           <QrCodeIcon className="w-5 h-5" />
           Log in with QR Code
         </button>
-      </div>
+      </div> 
 
-      <p className="mt-8 text-sm text-slate-600">
-        New to Sololink? <Link to="/signup" className="font-semibold text-vblue hover:underline">Create an account</Link>
-      </p>
+     
+      <div className="mt-8 mb-12 flex flex-col items-center gap-6">
+        <p className="text-sm" style={{ color: "var(--on-surface-variant)" }}>
+          New to Sololink? <Link to="/signup" className="font-semibold text-vblue hover:underline ml-1">Create an account</Link>
+        </p>
 
-      {/* Footer */}
-      <div className="fixed bottom-8 flex gap-8 text-xs font-bold text-slate-400 uppercase tracking-wider">
-        <div className="flex items-center gap-2"><ShieldCheckIcon className="w-4 h-4" /> End-to-end encrypted</div>
-        <div className="flex items-center gap-2"><GlobeIcon className="w-4 h-4" /> English (US)</div>
+        
+        <div className="flex flex-wrap justify-center gap-8 text-[10px] font-bold uppercase tracking-widest opacity-60" style={{ color: "var(--on-surface-variant)" }}>
+          <div className="flex items-center gap-2"><ShieldCheckIcon className="w-4 h-4" /> End-to-end encrypted</div>
+          <div className="flex items-center gap-2"><GlobeIcon className="w-4 h-4" /> English (US)</div>
+        </div>
       </div>
     </div>
   );
