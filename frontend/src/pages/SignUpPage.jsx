@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import { Link } from "react-router";
-import { MailIcon, LockIcon, LoaderIcon, EyeIcon, UserIcon, ShieldCheckIcon, GlobeIcon, CommandIcon } from "lucide-react";
+import { Link } from "react-router-dom"; 
+import { 
+  MailIcon, LockIcon, LoaderIcon, EyeIcon, EyeOffIcon, 
+  UserIcon, ShieldCheckIcon, GlobeIcon, CommandIcon 
+} from "lucide-react";
 
 function SignUpPage() {
   const [formData, setFormData] = useState({ fullName: "", username: "", email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const { signup, isSigningUp } = useAuthStore();
 
   const handleSubmit = (e) => {
@@ -13,98 +17,104 @@ function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center p-4" style={{ background: "var(--surface)" }}>
-      {/* Branding */}
-      <div className="text-center mb-8">
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg" style={{ background: "linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%)" }}>
-          <CommandIcon className="w-8 h-8" style={{ color: "var(--on-primary)" }} />
+  <div className="h-screen w-full flex flex-col items-center justify-between p-4 bg-[var(--surface)] overflow-hidden">
+    
+    <div className="flex-1 flex flex-col items-center justify-center min-h-0 w-full max-w-md">
+      
+      
+      <div className="text-center mb-4 shrink-0">
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-2 shadow-lg bg-gradient-to-br from-[var(--primary)] to-[var(--primary-container)]">
+          <CommandIcon className="w-6 h-6 text-[var(--on-primary)]" />
         </div>
-        <h1 className="text-2xl font-bold" style={{ color: "var(--on-surface)" }}>Sololink</h1>
-        <p className="mt-1" style={{ color: "var(--on-surface-variant)" }}>Create Your Account</p>
+        <h1 className="text-xl font-bold text-[var(--on-surface)]">Sololink</h1>
+        <p className="text-[var(--on-surface-variant)] text-xs">Create Your Account</p>
       </div>
 
-      {/* Card */}
-      <div className="w-full max-w-md rounded-[2rem] p-8 shadow-ambient" style={{ background: "var(--surface-lowest)" }}>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="v-label">Full Name</label>
-            <div className="relative">
-              <UserIcon className="v-input-icon" />
-              <input
-                type="text"
-                value={formData.fullName}
-                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                className="v-input"
-                placeholder="John Doe"
-              />
+      
+      <div className="w-full rounded-[1.5rem] p-6 shadow-ambient bg-[var(--surface-lowest)] border border-white/5">
+        <form onSubmit={handleSubmit} className="space-y-3">
+          
+          {[ 
+            { label: "Full Name", icon: <UserIcon size={16} />, name: "fullName", type: "text", placeholder: "John Doe" },
+            { label: "Username", icon: null, name: "username", type: "text", placeholder: "johndoe", isUsername: true },
+            { label: "Email", icon: <MailIcon size={16} />, name: "email", type: "email", placeholder: "name@example.com" }
+          ].map((field) => (
+            <div key={field.name} className="space-y-1">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 ml-1">{field.label}</label>
+              <div className="relative flex items-center">
+                {field.isUsername ? (
+                  <span className="absolute left-4 text-slate-500 font-semibold text-base">@</span>
+                ) : (
+                  <div className="absolute left-4 text-slate-500">{field.icon}</div>
+                )}
+                <input
+                  type={field.type}
+                  value={formData[field.name]}
+                  onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                  className="v-input h-10 pl-11 text-sm"
+                  placeholder={field.placeholder}
+                  required
+                />
+              </div>
             </div>
-          </div>
+          ))}
 
-          <div>
-            <label className="v-label">Username</label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-lg">@</span>
+          
+          <div className="space-y-1">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 ml-1">Password</label>
+            <div className="relative flex items-center">
+              <LockIcon className="absolute left-4 text-slate-500" size={16} />
               <input
-                type="text"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                className="v-input pl-10"
-                placeholder="johndoe"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="v-label">Email</label>
-            <div className="relative">
-              <MailIcon className="v-input-icon" />
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="v-input"
-                placeholder="name@example.com"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="v-label">Password</label>
-            <div className="relative">
-              <LockIcon className="v-input-icon" />
-              <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="v-input pr-10"
+                className="v-input h-10 pl-11 pr-11 text-sm"
                 placeholder="••••••••"
+                required
               />
-              <EyeIcon className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 size-5 cursor-pointer hover:text-slate-600" />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 text-slate-500 hover:text-[var(--primary)]"
+              >
+                {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+              </button>
             </div>
           </div>
 
-          <button type="submit" disabled={isSigningUp} className="v-btn-primary mt-2">
-            {isSigningUp ? <LoaderIcon className="w-5 h-5 animate-spin" /> : "Sign Up"}
+          <button 
+            type="submit" 
+            disabled={isSigningUp} 
+            className="v-btn-primary h-11 mt-4 text-sm font-bold w-full"
+          >
+            {isSigningUp ? <LoaderIcon className="w-4 h-4 animate-spin mx-auto" /> : "Sign Up"}
           </button>
         </form>
 
-        <p className="mt-8 text-center text-sm text-slate-600">
-          Already have an account? <Link to="/login" className="font-semibold text-vblue hover:underline">Login</Link>
-        </p>
         
-        <p className="mt-4 text-center text-xs text-slate-400 uppercase tracking-wider font-bold">
-          By signing up, you agree to our<br/> <a href="#" className="text-slate-500 hover:text-vblue transition-colors">Terms</a> and <a href="#" className="text-slate-500 hover:text-vblue transition-colors">Privacy Policy</a>.
-        </p>
-      </div>
-
-      {/* Footer */}
-      <div className="mt-8 flex gap-6 text-slate-400">
-          <ShieldCheckIcon className="w-5 h-5 hover:text-slate-600 transition-colors" />
-          <GlobeIcon className="w-5 h-5 hover:text-slate-600 transition-colors" />
+        <div className="mt-4 flex flex-col items-center gap-3">
+          <p className="text-xs text-slate-500">
+            Already have an account? <Link to="/login" className="font-bold text-vblue hover:underline">Login</Link>
+          </p>
+          <p className="text-center text-[9px] text-slate-500 uppercase tracking-widest leading-tight opacity-70">
+            By signing up, you agree to our <br/>
+            <span className="underline cursor-pointer">Terms</span> & <span className="underline cursor-pointer">Privacy</span>
+          </p>
+        </div>
       </div>
     </div>
-  );
+
+    
+    <div className="py-4 flex gap-8 text-slate-400 opacity-40 shrink-0">
+        <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest">
+          <ShieldCheckIcon className="w-3.5 h-3.5" /> End-to-end encrypted
+        </div>
+        <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest">
+          <GlobeIcon className="w-3.5 h-3.5" /> English (US)
+        </div>
+    </div>
+  </div>
+);
 }
 
 export default SignUpPage;
