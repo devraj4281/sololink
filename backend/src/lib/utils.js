@@ -12,12 +12,14 @@ export const generateToken = (userId, res) => {
     expiresIn: "7d",
   });
 
-  res.cookie("jwt", token, {
+  const cookieOptions = {
     maxAge: 7 * 24 * 60 * 60 * 1000,
     httpOnly: true,
     sameSite: NODE_ENV === "production" ? "none" : "lax",
     secure: NODE_ENV === "production",
-  });
+  };
+
+  res.cookie("jwt", token, cookieOptions);
 
   return token;
 };
