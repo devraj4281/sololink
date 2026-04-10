@@ -11,9 +11,10 @@ import DefaultAvatar from "./DefaultAvatar";
 
 function ChatContainer() {
   const {
-    selectedUser, getMessagesByUserId, messages,
+    selectedUser, getMessagesByUserId, messages: allMessages,
     isMessagesLoading, subscribeToMessages, unsubscribeFromMessages,
   } = useChatStore();
+  const messages = allMessages[selectedUser._id] || [];
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
 

@@ -6,7 +6,7 @@ import { useAuthStore } from "./useAuthStore";
 export const useChatStore = create((set, get) => ({
   allContacts: [],
   chats: [],
-  messages: [],
+  messages: {}, // Changed to object: { [userId]: [] }
   activeTab: "chats",
   selectedUser: null,
   isUsersLoading: false,
@@ -20,11 +20,8 @@ export const useChatStore = create((set, get) => ({
 
   setActiveTab: (tab) => set({ activeTab: tab }),
   setSelectedUser: (user) => {
-  set({ 
-    selectedUser: user, 
-    messages: [] 
-  });
-},
+    set({ selectedUser: user });
+  },
 
   getAllContacts: async () => {
     set({ isUsersLoading: true });
@@ -50,13 +47,20 @@ export const useChatStore = create((set, get) => ({
   },
 
   getMessagesByUserId: async (userId) => {
-    set({ isMessagesLoading: true });
+    const { messages } = get();
+    // Only show loading if we don't have messages for this user yet
+    if (!messages[userId]) {
+      set({ isMessagesLoading: true });
+    }
+
     try {
       const res = await axiosInstance.get(`/messages/${userId}`);
-      set({ messages: res.data });
+      set({ 
+        messages: { ...get().messages, [userId]: res.data },
+        isMessagesLoading: false
+      });
     } catch (error) {
       toast.error(error.response?.data?.message || "Something went wrong");
-    } finally {
       set({ isMessagesLoading: false });
     }
   },
@@ -64,27 +68,35 @@ export const useChatStore = create((set, get) => ({
   sendMessage: async (messageData) => {
     const { selectedUser, messages } = get();
     const { authUser } = useAuthStore.getState();
+    const userId = selectedUser._id;
+    const userMessages = messages[userId] || [];
 
     const tempId = `temp-${Date.now()}`;
 
     const optimisticMessage = {
       _id: tempId,
       senderId: authUser._id,
-      receiverId: selectedUser._id,
+      receiverId: userId,
       text: messageData.text,
       image: messageData.image,
       createdAt: new Date().toISOString(),
-      isOptimistic: true, // flag to identify optimistic messages (optional)
+      isOptimistic: true,
     };
-    // immidetaly update the ui by adding the message
-    set({ messages: [...messages, optimisticMessage] });
+
+    set({ 
+      messages: { ...messages, [userId]: [...userMessages, optimisticMessage] } 
+    });
 
     try {
-      const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
-      set({ messages: messages.concat(res.data) });
+      const res = await axiosInstance.post(`/messages/send/${userId}`, messageData);
+      const updatedMessages = get().messages[userId].filter(m => m._id !== tempId);
+      set({ 
+        messages: { ...get().messages, [userId]: [...updatedMessages, res.data] } 
+      });
     } catch (error) {
-      // remove optimistic message on failure
-      set({ messages: messages });
+      set({ 
+        messages: { ...get().messages, [userId]: userMessages } 
+      });
       toast.error(error.response?.data?.message || "Something went wrong");
     }
   },
@@ -96,16 +108,21 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
 
     socket.on("newMessage", (newMessage) => {
-      const isMessageSentFromSelectedUser = newMessage.senderId === selectedUser._id;
-      if (!isMessageSentFromSelectedUser) return;
+      const { selectedUser, messages } = get();
+      
+      // Determine which conversation this belongs to
+      const authUser = useAuthStore.getState().authUser;
+      const otherUserId = newMessage.senderId === authUser._id ? newMessage.receiverId : newMessage.senderId;
+      
+      const userMessages = messages[otherUserId] || [];
+      
+      set({ 
+        messages: { ...messages, [otherUserId]: [...userMessages, newMessage] } 
+      });
 
-      const currentMessages = get().messages;
-      set({ messages: [...currentMessages, newMessage] });
-
-      if (isSoundEnabled) {
+      if (isSoundEnabled && otherUserId === selectedUser?._id) {
         const notificationSound = new Audio("/sounds/notification.mp3");
-
-        notificationSound.currentTime = 0; // reset to start
+        notificationSound.currentTime = 0;
         notificationSound.play().catch((e) => console.log("Audio play failed:", e));
       }
     });

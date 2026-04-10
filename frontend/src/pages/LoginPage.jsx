@@ -27,7 +27,7 @@ function LoginPage() {
       {/* Card */}
       <div className="w-full max-w-md rounded-[2rem] p-8 shadow-ambient" style={{ background: "var(--surface-lowest)" }}>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
           <div>
             <label className="v-label">Username or Email</label>
             <div className="relative">
@@ -38,6 +38,7 @@ function LoginPage() {
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="v-input pl-10"
                 placeholder="name@example.com"
+                autoComplete="one-time-code"
               />
             </div>
           </div>
@@ -55,18 +56,19 @@ function LoginPage() {
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="v-input pr-10"
                 placeholder="••••••••"
+                autoComplete="new-password"
               />
               <button
-    type="button" 
-    onClick={() => setShowPassword(!showPassword)}
-    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-vblue transition-colors"
-  >
-    {showPassword ? (
-      <EyeOffIcon className="size-5" />
-    ) : (
-      <EyeIcon className="size-5" />
-    )}
-  </button>
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-vblue transition-colors"
+              >
+                {showPassword ? (
+                  <EyeOffIcon className="size-5" />
+                ) : (
+                  <EyeIcon className="size-5" />
+                )}
+              </button>
             </div>
           </div>
 
@@ -90,15 +92,15 @@ function LoginPage() {
           <QrCodeIcon className="w-5 h-5" />
           Log in with QR Code
         </button>
-      </div> 
+      </div>
 
-     
+
       <div className="mt-8 mb-12 flex flex-col items-center gap-6">
         <p className="text-sm" style={{ color: "var(--on-surface-variant)" }}>
           New to Sololink? <Link to="/signup" className="font-semibold text-vblue hover:underline ml-1">Create an account</Link>
         </p>
 
-        
+
         <div className="flex flex-wrap justify-center gap-8 text-[10px] font-bold uppercase tracking-widest opacity-60" style={{ color: "var(--on-surface-variant)" }}>
           <div className="flex items-center gap-2"><ShieldCheckIcon className="w-4 h-4" /> End-to-end encrypted</div>
           <div className="flex items-center gap-2"><GlobeIcon className="w-4 h-4" /> English (US)</div>

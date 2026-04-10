@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import useKeyboardSound from "../hooks/useKeyboardSound";
 import { useChatStore } from "../store/useChatStore";
 import toast from "react-hot-toast";
@@ -12,22 +12,44 @@ function MessageInput() {
   const fileInputRef = useRef(null);
   const { sendMessage, isSoundEnabled } = useChatStore();
 
-  const handleSendMessage = (e) => {
+  useEffect(() => {
+    return () => {
+      if (imagePreview && imagePreview.startsWith("blob:")) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
+  const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!text.trim() && !imagePreview) return;
-    if (isSoundEnabled) playRandomKeyStrokeSound();
-    sendMessage({ text: text.trim(), image: imagePreview });
-    setText("");
-    setImagePreview("");
-    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    try {
+      if (isSoundEnabled) setTimeout(() => playRandomKeyStrokeSound(), 0);
+
+      await sendMessage({
+        text: text.trim(),
+        image: imagePreview,
+      });
+
+      setText("");
+      setImagePreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (error) {
+      toast.error("Failed to send message");
+    }
   };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
-    if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return; }
-    const reader = new FileReader();
-    reader.onloadend = () => setImagePreview(reader.result);
-    reader.readAsDataURL(file);
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setImagePreview(previewUrl);
   };
 
   const removeImage = () => {
@@ -46,13 +68,12 @@ function MessageInput() {
         }}
       >
         {imagePreview && (
-          <div className="mb-3 px-4 pt-2">
+          <div className="mb-3 px-4 pt-2 animate-in fade-in slide-in-from-bottom-2">
             <div className="relative inline-block">
-              <img src={imagePreview} alt="Preview" className="w-20 h-20 object-cover rounded-xl" />
+              <img src={imagePreview} alt="Preview" className="w-20 h-20 object-cover rounded-xl border border-slate-700" />
               <button
                 onClick={removeImage}
-                className="spring absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center"
-                style={{ background: "var(--surface-lowest)", boxShadow: "0 1px 6px rgba(0,0,0,0.18)", color: "var(--on-surface-variant)" }}
+                className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center bg-red-500 text-white shadow-lg hover:scale-110 transition-transform"
                 type="button"
               >
                 <XIcon className="w-3.5 h-3.5" />
@@ -62,27 +83,26 @@ function MessageInput() {
         )}
 
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-          {/* Attachment */}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="spring w-12 h-12 flex items-center justify-center rounded-full shrink-0"
-            style={{ color: imagePreview ? "var(--primary)" : "var(--on-surface-variant)", background: imagePreview ? "var(--primary-fixed)" : "transparent" }}
+            className="w-12 h-12 flex items-center justify-center rounded-full shrink-0 hover:bg-slate-800 transition-colors"
+            style={{ color: imagePreview ? "var(--primary)" : "var(--on-surface-variant)" }}
           >
             <PlusCircleIcon className="w-6 h-6" />
           </button>
           <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageChange} className="hidden" />
 
-          {/* Message input */}
           <div className="flex-1 relative">
             <input
               type="text"
               value={text}
-              onChange={(e) => { setText(e.target.value); isSoundEnabled && playRandomKeyStrokeSound(); }}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={() => isSoundEnabled && playRandomKeyStrokeSound()}
+              autoComplete="off" 
               style={{
                 width: "100%",
                 background: "transparent",
-                borderRadius: "1rem",
                 padding: "0.625rem 3rem 0.625rem 0.5rem",
                 fontSize: "0.9375rem",
                 color: "var(--on-surface)",
@@ -93,20 +113,12 @@ function MessageInput() {
               onBlur={() => setFocused(false)}
               placeholder="Write a message..."
             />
-            <button
-              type="button"
-              className="spring absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center"
-              style={{ color: "var(--on-surface-variant)" }}
-            >
-              <SmileIcon className="w-5 h-5" />
-            </button>
           </div>
 
-          {/* Send */}
           <button
             type="submit"
             disabled={!text.trim() && !imagePreview}
-            className="spring w-11 h-11 flex items-center justify-center rounded-full shrink-0 shadow-sm active:scale-90"
+            className="w-11 h-11 flex items-center justify-center rounded-full shrink-0 shadow-sm active:scale-90 transition-all"
             style={{
               background: "linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%)",
               color: "var(--on-primary)",
@@ -120,4 +132,5 @@ function MessageInput() {
     </div>
   );
 }
+
 export default MessageInput;

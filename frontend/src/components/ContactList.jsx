@@ -22,9 +22,9 @@ function ContactList() {
           <div
             key={contact._id}
             className="spring flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer"
-            style={{ background: isActive ? "#c8e6ff" : "transparent" }}
+            style={{ background: isActive ? "var(--primary-fixed)" : "transparent" }}
             onClick={() => setSelectedUser(contact)}
-            onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#e8e8e9"; }}
+            onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "var(--surface-high)"; }}
             onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
           >
             <div className="relative shrink-0">
@@ -43,10 +43,10 @@ function ContactList() {
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-semibold truncate" style={{ color: isActive ? "#00628b" : "#1a1c1d" }}>
+              <h4 className="text-sm font-semibold truncate" style={{ color: isActive ? "var(--primary)" : "var(--on-surface)" }}>
                 {contact.fullName}
               </h4>
-              <p className="text-xs truncate mt-0.5" style={{ color: "#3f4850" }}>
+              <p className="text-xs truncate mt-0.5" style={{ color: "var(--on-surface-variant)" }}>
                 {isOnline ? "Online" : "Offline"}
               </p>
             </div>
