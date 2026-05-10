@@ -29,7 +29,7 @@ function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
           <div>
-            <label className="v-label">Username or Email</label>
+            <label className="v-label">Email</label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-lg">@</span>
               <input
