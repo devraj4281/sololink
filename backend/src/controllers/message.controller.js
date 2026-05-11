@@ -105,3 +105,24 @@ export const getChatPartners = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+export const getCallHistory = async (req, res) => {
+  try {
+    const myId = req.user._id;
+
+    // Fetch messages of type call_voice or call_video where user is sender or receiver
+    const callLogs = await Message.find({
+      $or: [{ senderId: myId }, { receiverId: myId }],
+      type: { $in: ["call_voice", "call_video"] },
+    })
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .populate("senderId", "fullName profilePic")
+      .populate("receiverId", "fullName profilePic");
+
+    res.status(200).json(callLogs);
+  } catch (error) {
+    console.error("Error in getCallHistory: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
