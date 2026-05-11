@@ -27,10 +27,6 @@ app.use(
 app.use(express.json({ limit: "5mb" }));
 app.use(cookieParser());
 
-// TEST route
-app.get("/", (req, res) => {
-  res.send("Hello secure world!");
-});
 
 // API routes
 app.use("/api/auth", authRoutes);
