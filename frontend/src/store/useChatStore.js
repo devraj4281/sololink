@@ -6,11 +6,13 @@ import { useAuthStore } from "./useAuthStore";
 export const useChatStore = create((set, get) => ({
   allContacts: [],
   chats: [],
+  calls: [], // Added calls state
   messages: {}, // Changed to object: { [userId]: [] }
   activeTab: "chats",
   selectedUser: null,
   isUsersLoading: false,
   isMessagesLoading: false,
+  isCallsLoading: false, // Added loading state for calls
   isSoundEnabled: JSON.parse(localStorage.getItem("isSoundEnabled")) === true,
 
   toggleSound: () => {
@@ -62,6 +64,18 @@ export const useChatStore = create((set, get) => ({
     } catch (error) {
       toast.error(error.response?.data?.message || "Something went wrong");
       set({ isMessagesLoading: false });
+    }
+  },
+
+  fetchCallHistory: async () => {
+    set({ isCallsLoading: true });
+    try {
+      const res = await axiosInstance.get("/messages/call-history");
+      set({ calls: res.data });
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to fetch call history");
+    } finally {
+      set({ isCallsLoading: false });
     }
   },
 
