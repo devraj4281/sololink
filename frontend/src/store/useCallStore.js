@@ -89,7 +89,10 @@ export const useCallStore = create((set, get) => ({
     const stream = await initMedia(type);
     if (!stream) return;
 
-    set({ callStatus: "calling", activeCall: { user: userToCall, type } });
+    // Normalize to DB enum values: "call_voice" | "call_video"
+    const callType = type === "video" ? "call_video" : "call_voice";
+
+    set({ callStatus: "calling", activeCall: { user: userToCall, type: callType } });
 
     const pc = setupPeerConnection(userToCall._id);
 
@@ -102,7 +105,7 @@ export const useCallStore = create((set, get) => ({
         signalData: offer,
         from: authUser._id,
         name: authUser.fullName,
-        type,
+        type: callType,
       });
     } catch (error) {
       console.error(error);
