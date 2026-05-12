@@ -122,7 +122,7 @@ export const useChatStore = create((set, get) => ({
     const socket = useAuthStore.getState().socket;
 
     socket.on("newMessage", (newMessage) => {
-      const { selectedUser, messages } = get();
+      const { selectedUser, messages, calls } = get();
       
       // Determine which conversation this belongs to
       const authUser = useAuthStore.getState().authUser;
@@ -133,6 +133,11 @@ export const useChatStore = create((set, get) => ({
       set({ 
         messages: { ...messages, [otherUserId]: [...userMessages, newMessage] } 
       });
+
+      // Live-update the calls cache if it's already loaded
+      if (newMessage.type?.startsWith("call_") && calls.length > 0) {
+        set({ calls: [newMessage, ...calls] });
+      }
 
       if (isSoundEnabled && otherUserId === selectedUser?._id) {
         const notificationSound = new Audio("/sounds/notification.mp3");
