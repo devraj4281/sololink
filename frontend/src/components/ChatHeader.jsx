@@ -1,13 +1,16 @@
-import { PhoneIcon, VideoIcon, MoreVerticalIcon } from "lucide-react";
+import { PhoneIcon, VideoIcon, MoreVerticalIcon, ChevronLeft } from "lucide-react";
 import { useChatStore } from "../store/useChatStore";
+import { useCallStore } from "../store/useCallStore";
 import { useEffect } from "react";
 import { useAuthStore } from "../store/useAuthStore";
 import DefaultAvatar from "./DefaultAvatar";
 
 function ChatHeader() {
   const { selectedUser, setSelectedUser } = useChatStore();
+  const { initiateCall } = useCallStore();
   const { onlineUsers } = useAuthStore();
-  const isOnline = onlineUsers.includes(selectedUser._id);
+  
+  const isOnline = selectedUser ? onlineUsers.includes(selectedUser._id) : false;
 
   useEffect(() => {
     const handleEscKey = (event) => {
@@ -16,6 +19,8 @@ function ChatHeader() {
     window.addEventListener("keydown", handleEscKey);
     return () => window.removeEventListener("keydown", handleEscKey);
   }, [setSelectedUser]);
+
+  if (!selectedUser) return null;
 
   return (
     <div
@@ -26,7 +31,14 @@ function ChatHeader() {
       }}
     >
       <div className="max-w-4xl mx-auto w-full flex justify-between items-center">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 md:gap-3">
+          <button 
+            onClick={() => setSelectedUser(null)} 
+            className="md:hidden spring w-9 h-9 flex items-center justify-center rounded-xl text-[var(--on-surface-variant)] mr-1 active:bg-[var(--surface-high)] transition-colors"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          
           <div className="relative">
             {selectedUser.profilePic ? (
               <img
@@ -55,22 +67,37 @@ function ChatHeader() {
         </div>
 
         <div className="flex items-center gap-1">
-          {[
-            { Icon: PhoneIcon,        label: "Voice call" },
-            { Icon: VideoIcon,        label: "Video call" },
-            { Icon: MoreVerticalIcon, label: "More" },
-          ].map(({ Icon, label }, i) => (
-            <button
-              key={i}
-              title={label}
-              className="spring w-9 h-9 flex items-center justify-center rounded-xl"
-              style={{ color: "var(--primary)" }}
-              onMouseEnter={e => { e.currentTarget.style.background = "var(--primary-fixed)"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-            >
-              <Icon className="w-5 h-5" />
-            </button>
-          ))}
+          <button
+            title="Voice call"
+            onClick={() => initiateCall(selectedUser, "voice")}
+            className="spring w-9 h-9 flex items-center justify-center rounded-xl"
+            style={{ color: "var(--primary)" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "var(--primary-fixed)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+          >
+            <PhoneIcon className="w-5 h-5" />
+          </button>
+          
+          <button
+            title="Video call"
+            onClick={() => initiateCall(selectedUser, "video")}
+            className="spring w-9 h-9 flex items-center justify-center rounded-xl"
+            style={{ color: "var(--primary)" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "var(--primary-fixed)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+          >
+            <VideoIcon className="w-5 h-5" />
+          </button>
+
+          <button
+            title="More"
+            className="spring w-9 h-9 flex items-center justify-center rounded-xl"
+            style={{ color: "var(--primary)" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "var(--primary-fixed)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+          >
+            <MoreVerticalIcon className="w-5 h-5" />
+          </button>
         </div>
       </div>
     </div>
