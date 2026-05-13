@@ -13,6 +13,7 @@ export const useChatStore = create((set, get) => ({
   isUsersLoading: false,
   isMessagesLoading: false,
   isCallsLoading: false, // Added loading state for calls
+  typingUsers: [], // Array of user IDs currently typing
   isSoundEnabled: JSON.parse(localStorage.getItem("isSoundEnabled")) === true,
 
   toggleSound: () => {
@@ -145,10 +146,27 @@ export const useChatStore = create((set, get) => ({
         notificationSound.play().catch((e) => console.log("Audio play failed:", e));
       }
     });
+
+    socket.on("userTyping", ({ userId }) => {
+      set((state) => {
+        if (!state.typingUsers.includes(userId)) {
+          return { typingUsers: [...state.typingUsers, userId] };
+        }
+        return state;
+      });
+    });
+
+    socket.on("userStoppedTyping", ({ userId }) => {
+      set((state) => ({
+        typingUsers: state.typingUsers.filter((id) => id !== userId),
+      }));
+    });
   },
 
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
     socket.off("newMessage");
+    socket.off("userTyping");
+    socket.off("userStoppedTyping");
   },
 }));

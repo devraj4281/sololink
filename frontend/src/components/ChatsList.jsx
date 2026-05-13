@@ -33,7 +33,7 @@ function ChatsList() {
         return (
           <div
             key={chat._id}
-            className="spring flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer"
+            className="spring flex items-center gap-3 px-3 py-3 mb-1 rounded-xl cursor-pointer"
             style={{ background: isActive ? "var(--primary-fixed)" : "transparent" }}
             onClick={() => setSelectedUser(chat)}
             onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "var(--surface-high)"; }}

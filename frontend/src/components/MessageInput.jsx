@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import useKeyboardSound from "../hooks/useKeyboardSound";
 import { useChatStore } from "../store/useChatStore";
+import { useAuthStore } from "../store/useAuthStore";
 import toast from "react-hot-toast";
 import { PlusCircleIcon, SmileIcon, SendIcon, XIcon } from "lucide-react";
 
@@ -10,19 +11,44 @@ function MessageInput() {
   const [imagePreview, setImagePreview] = useState(null);
   const [focused, setFocused] = useState(false);
   const fileInputRef = useRef(null);
-  const { sendMessage, isSoundEnabled } = useChatStore();
+  const typingTimeoutRef = useRef(null);
+  const { sendMessage, isSoundEnabled, selectedUser } = useChatStore();
+  const socket = useAuthStore((state) => state.socket);
 
   useEffect(() => {
     return () => {
       if (imagePreview && imagePreview.startsWith("blob:")) {
         URL.revokeObjectURL(imagePreview);
       }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
     };
   }, [imagePreview]);
+
+  const handleTyping = (e) => {
+    setText(e.target.value);
+    
+    if (socket && selectedUser) {
+      socket.emit("typing", { to: selectedUser._id });
+      
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      
+      typingTimeoutRef.current = setTimeout(() => {
+        socket.emit("stopTyping", { to: selectedUser._id });
+      }, 2000);
+    }
+  };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!text.trim() && !imagePreview) return;
+
+    // Clear typing indicator immediately
+    if (socket && selectedUser) {
+      socket.emit("stopTyping", { to: selectedUser._id });
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    }
 
     try {
       if (isSoundEnabled) setTimeout(() => playRandomKeyStrokeSound(), 0);
@@ -97,7 +123,7 @@ function MessageInput() {
             <input
               type="text"
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={handleTyping}
               onKeyDown={() => isSoundEnabled && playRandomKeyStrokeSound()}
               autoComplete="off" 
               style={{

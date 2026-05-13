@@ -143,6 +143,21 @@ io.on("connection", (socket) => {
       io.to(receiverSocketId).emit("iceCandidate", candidate);
     }
   });
+
+  // Typing Indicators
+  socket.on("typing", ({ to }) => {
+    const receiverSocketId = getReceiverSocketId(to);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("userTyping", { userId: socket.userId });
+    }
+  });
+
+  socket.on("stopTyping", ({ to }) => {
+    const receiverSocketId = getReceiverSocketId(to);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("userStoppedTyping", { userId: socket.userId });
+    }
+  });
 });
 
 export { io, app, server };

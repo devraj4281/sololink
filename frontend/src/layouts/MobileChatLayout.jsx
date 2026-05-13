@@ -4,10 +4,12 @@ import ChatContainer from "../components/ChatContainer";
 import ChatsList from "../components/ChatsList";
 import ContactList from "../components/ContactList";
 import CallsList from "../components/calls/CallsList.jsx";
-import { MessageSquareIcon, UsersIcon, PhoneIcon, SettingsIcon } from "lucide-react";
+import { MessageSquareIcon, UsersIcon, PhoneIcon, SettingsIcon, SunIcon, MoonIcon } from "lucide-react";
+import { useTheme } from "../hooks/useTheme";
 
 function MobileChatLayout() {
   const { selectedUser } = useChatStore();
+  const { isDark, toggle: toggleTheme } = useTheme();
   const [currentTab, setCurrentTab] = useState("chats");
 
   const navItems = [
@@ -36,6 +38,12 @@ function MobileChatLayout() {
           <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--on-surface)" }} className="capitalize">
             {currentTab}
           </h2>
+          <button onClick={toggleTheme} title={isDark ? "Light Mode" : "Dark Mode"}
+            className="spring w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--surface-low)]"
+            style={{ color: "var(--on-surface-variant)" }}
+          >
+            {isDark ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
+          </button>
         </div>
 
         {/* Search */}
@@ -55,12 +63,14 @@ function MobileChatLayout() {
 
         {/* Content area */}
         <div className="flex-1 overflow-y-auto px-2 pb-2">
-          {currentTab === "chats"    && <ChatsList />}
-          {currentTab === "contacts" && <ContactList />}
-          {currentTab === "calls"    && <CallsList />}
-          {currentTab === "settings" && (
-            <div className="p-4 text-center text-sm text-[var(--on-surface-variant)]">Settings coming soon</div>
-          )}
+          <div className="space-y-1">
+            {currentTab === "chats"    && <ChatsList />}
+            {currentTab === "contacts" && <ContactList />}
+            {currentTab === "calls"    && <CallsList />}
+            {currentTab === "settings" && (
+              <div className="p-4 text-center text-sm text-[var(--on-surface-variant)]">Settings coming soon</div>
+            )}
+          </div>
         </div>
 
         {/* Bottom Nav */}

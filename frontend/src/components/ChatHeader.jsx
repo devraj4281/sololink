@@ -6,11 +6,12 @@ import { useAuthStore } from "../store/useAuthStore";
 import DefaultAvatar from "./DefaultAvatar";
 
 function ChatHeader() {
-  const { selectedUser, setSelectedUser } = useChatStore();
+  const { selectedUser, setSelectedUser, typingUsers } = useChatStore();
   const { initiateCall } = useCallStore();
   const { onlineUsers } = useAuthStore();
   
   const isOnline = selectedUser ? onlineUsers.includes(selectedUser._id) : false;
+  const isTyping = selectedUser ? typingUsers.includes(selectedUser._id) : false;
 
   useEffect(() => {
     const handleEscKey = (event) => {
@@ -60,8 +61,8 @@ function ChatHeader() {
             <h3 style={{ fontSize: "1.0625rem", fontWeight: 600, color: "var(--on-surface)" }}>
               {selectedUser.fullName}
             </h3>
-            <p style={{ fontSize: "0.75rem", fontWeight: 500, color: isOnline ? "#34d399" : "var(--on-surface-variant)" }}>
-              {isOnline ? "online" : "offline"}
+            <p style={{ fontSize: "0.75rem", fontWeight: 500, color: isTyping || isOnline ? "#34d399" : "var(--on-surface-variant)" }}>
+              {isTyping ? "typing..." : isOnline ? "online" : "offline"}
             </p>
           </div>
         </div>
