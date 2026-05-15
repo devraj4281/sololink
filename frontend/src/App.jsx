@@ -5,10 +5,10 @@ import SignUpPage from "./pages/SignUpPage";
 import { useAuthStore } from "./store/useAuthStore";
 import { useCallStore } from "./store/useCallStore";
 import { useEffect } from "react";
-import PageLoader from "./components/PageLoader";
+import PageLoader from "./components/ui/PageLoader";
 import { Toaster } from "react-hot-toast";
-import IncomingCallModal from "./components/IncomingCallModal";
-import CallScreen from "./components/CallScreen";
+import IncomingCallModal from "./components/calls/IncomingCallModal";
+import CallScreen from "./components/calls/CallScreen";
 
 function App() {
   const { checkAuth, isCheckingAuth, authUser, socket } = useAuthStore();

@@ -1,9 +1,9 @@
 import { PhoneIcon, VideoIcon, MoreVerticalIcon, ChevronLeft } from "lucide-react";
-import { useChatStore } from "../store/useChatStore";
-import { useCallStore } from "../store/useCallStore";
+import { useChatStore } from "../../store/useChatStore";
+import { useCallStore } from "../../store/useCallStore";
 import { useEffect } from "react";
-import { useAuthStore } from "../store/useAuthStore";
-import DefaultAvatar from "./DefaultAvatar";
+import { useAuthStore } from "../../store/useAuthStore";
+import DefaultAvatar from "../ui/DefaultAvatar";
 
 function ChatHeader() {
   const { selectedUser, setSelectedUser, typingUsers } = useChatStore();

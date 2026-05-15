@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useCallStore } from "../store/useCallStore";
+import { useCallStore } from "../../store/useCallStore";
 import { Mic, MicOff, Video, VideoOff, PhoneOff, User } from "lucide-react";
 
 function CallScreen() {

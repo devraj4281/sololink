@@ -1,14 +1,14 @@
 import { useEffect, useRef, useMemo } from "react";
-import { useAuthStore } from "../store/useAuthStore";
-import { useChatStore } from "../store/useChatStore";
+import { useAuthStore } from "../../store/useAuthStore";
+import { useChatStore } from "../../store/useChatStore";
 import ChatHeader from "./ChatHeader";
-import NoChatHistoryPlaceholder from "./NoChatHistoryPlaceholder";
+import NoChatHistoryPlaceholder from "../feedback/NoChatHistoryPlaceholder";
 import MessageInput from "./MessageInput";
-import MessagesLoadingSkeleton from "./MessagesLoadingSkeleton";
-import DefaultAvatar from "./DefaultAvatar";
-import CallSystemMessage from "./calls/CallSystemMessage";
-import DateSeparator from "./chat/DateSeparator";
-import { formatMessageDate, isSameDay } from "../utils/formatMessageDate";
+import MessagesLoadingSkeleton from "../feedback/MessagesLoadingSkeleton";
+import DefaultAvatar from "../ui/DefaultAvatar";
+import CallSystemMessage from "../calls/CallSystemMessage";
+import DateSeparator from "./DateSeparator";
+import { formatMessageDate, isSameDay } from "../../lib/formatMessageDate";
 
 function ChatContainer() {
   const {

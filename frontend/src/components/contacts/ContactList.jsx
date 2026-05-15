@@ -1,8 +1,8 @@
 import { useEffect } from "react";
-import { useChatStore } from "../store/useChatStore";
-import UsersLoadingSkeleton from "./UsersLoadingSkeleton";
-import { useAuthStore } from "../store/useAuthStore";
-import DefaultAvatar from "./DefaultAvatar";
+import { useChatStore } from "../../store/useChatStore";
+import UsersLoadingSkeleton from "../feedback/UsersLoadingSkeleton";
+import { useAuthStore } from "../../store/useAuthStore";
+import DefaultAvatar from "../ui/DefaultAvatar";
 
 function ContactList() {
   const { getAllContacts, allContacts, setSelectedUser, selectedUser, isUsersLoading } = useChatStore();

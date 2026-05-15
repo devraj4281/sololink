@@ -1,5 +1,5 @@
 import { PhoneIcon, VideoIcon, ArrowUpRightIcon, ArrowDownLeftIcon } from "lucide-react";
-import DefaultAvatar from "../DefaultAvatar";
+import DefaultAvatar from "../ui/DefaultAvatar";
 
 function CallItem({ call, authUser, onClick }) {
   // Safe extraction — senderId may be a populated object or a raw ObjectId string

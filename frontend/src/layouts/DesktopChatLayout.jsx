@@ -2,11 +2,11 @@ import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { useTheme } from "../hooks/useTheme";
 
-import ChatsList from "../components/ChatsList";
-import ContactList from "../components/ContactList";
-import ChatContainer from "../components/ChatContainer";
-import NoConversationPlaceholder from "../components/NoConversationPlaceholder.jsx";
-import CallsList from "../components/calls/CallsList.jsx";
+import ChatsList from "../components/chat/ChatsList";
+import ContactList from "../components/contacts/ContactList";
+import ChatContainer from "../components/chat/ChatContainer";
+import NoConversationPlaceholder from "../components/feedback/NoConversationPlaceholder";
+import CallsList from "../components/calls/CallsList";
 
 import { MessageSquareIcon, UsersIcon, PhoneIcon, SettingsIcon, LogOutIcon, BellIcon, BellOffIcon, CommandIcon, SunIcon, MoonIcon } from "lucide-react";
 import { useState, useRef, useEffect } from "react";

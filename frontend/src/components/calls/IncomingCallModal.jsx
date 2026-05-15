@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
-import { useCallStore } from "../store/useCallStore";
+import { useCallStore } from "../../store/useCallStore";
 import { Phone, PhoneOff } from "lucide-react";
-import DefaultAvatar from "./DefaultAvatar";
+import DefaultAvatar from "../ui/DefaultAvatar";
 
 function IncomingCallModal() {
   const { callStatus, incomingCall, answerCall, rejectCall } = useCallStore();

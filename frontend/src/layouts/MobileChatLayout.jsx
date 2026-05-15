@@ -1,9 +1,9 @@
 import { useChatStore } from "../store/useChatStore";
 import { useState } from "react";
-import ChatContainer from "../components/ChatContainer";
-import ChatsList from "../components/ChatsList";
-import ContactList from "../components/ContactList";
-import CallsList from "../components/calls/CallsList.jsx";
+import ChatContainer from "../components/chat/ChatContainer";
+import ChatsList from "../components/chat/ChatsList";
+import ContactList from "../components/contacts/ContactList";
+import CallsList from "../components/calls/CallsList";
 import { MessageSquareIcon, UsersIcon, PhoneIcon, SettingsIcon, SunIcon, MoonIcon } from "lucide-react";
 import { useTheme } from "../hooks/useTheme";
 

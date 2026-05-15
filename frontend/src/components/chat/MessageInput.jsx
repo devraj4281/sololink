@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from "react";
-import useKeyboardSound from "../hooks/useKeyboardSound";
-import { useChatStore } from "../store/useChatStore";
-import { useAuthStore } from "../store/useAuthStore";
+import useKeyboardSound from "../../hooks/useKeyboardSound";
+import { useChatStore } from "../../store/useChatStore";
+import { useAuthStore } from "../../store/useAuthStore";
 import toast from "react-hot-toast";
 import { PlusCircleIcon, SmileIcon, SendIcon, XIcon } from "lucide-react";
 
