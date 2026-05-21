@@ -10,6 +10,7 @@ function MessageInput() {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const [focused, setFocused] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const { sendMessage, isSoundEnabled, selectedUser } = useChatStore();
@@ -43,6 +44,16 @@ function MessageInput() {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!text.trim() && !imagePreview) return;
+    if (isSubmitting) return;
+
+    const currentText = text.trim();
+    const currentImage = imagePreview;
+
+    // Clear UI state synchronously before any async operations
+    setText("");
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setIsSubmitting(true);
 
     // Clear typing indicator immediately
     if (socket && selectedUser) {
@@ -54,15 +65,13 @@ function MessageInput() {
       if (isSoundEnabled) setTimeout(() => playRandomKeyStrokeSound(), 0);
 
       await sendMessage({
-        text: text.trim(),
-        image: imagePreview,
+        text: currentText,
+        image: currentImage,
       });
-
-      setText("");
-      setImagePreview(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       toast.error("Failed to send message");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

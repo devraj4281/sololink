@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useCallStore } from "../../store/useCallStore";
-import { Mic, MicOff, Video, VideoOff, PhoneOff, User } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, PhoneOff, User, Minimize2 } from "lucide-react";
 
 function CallScreen() {
   const {
@@ -13,6 +13,8 @@ function CallScreen() {
     toggleVideo,
     isAudioMuted,
     isVideoMuted,
+    callUIMode,
+    setCallUIMode,
   } = useCallStore();
 
   const localVideoRef = useRef(null);
@@ -31,6 +33,7 @@ function CallScreen() {
   }, [remoteStream]);
 
   if (callStatus !== "calling" && callStatus !== "active") return null;
+  if (callUIMode === "minimized") return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md sm:p-6 transition-all duration-300">
@@ -55,6 +58,14 @@ function CallScreen() {
               </p>
             </div>
           </div>
+
+          <button 
+            onClick={() => setCallUIMode("minimized")}
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 hover:bg-black/60 transition-colors backdrop-blur-md"
+            title="Minimize"
+          >
+            <Minimize2 className="w-5 h-5 text-white" />
+          </button>
         </div>
 
         {/* Video Area */}

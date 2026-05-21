@@ -7,6 +7,7 @@ import path from "path";
 import { connectDB } from "./lib/db.js";
 import authRoutes from "./routes/auth.route.js";
 import messageRoute from "./routes/message.route.js";
+import callRoute from "./routes/call.route.js";
 import { ENV } from "./lib/env.js";
 import { app, server } from "./lib/socket.js";
 
@@ -31,6 +32,7 @@ app.use(cookieParser());
 // API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoute);
+app.use("/api/calls", callRoute);
 
 
 
