@@ -5,8 +5,13 @@ import { useAuthStore } from "../../store/useAuthStore";
 import DefaultAvatar from "../ui/DefaultAvatar";
 
 function ContactList() {
-  const { getAllContacts, allContacts, setSelectedUser, selectedUser, isUsersLoading } = useChatStore();
-  const { onlineUsers } = useAuthStore();
+  const getAllContacts = useChatStore((state) => state.getAllContacts);
+  const allContacts = useChatStore((state) => state.allContacts);
+  const setSelectedUser = useChatStore((state) => state.setSelectedUser);
+  const selectedUser = useChatStore((state) => state.selectedUser);
+  const isUsersLoading = useChatStore((state) => state.isUsersLoading);
+
+  const onlineUsers = useAuthStore((state) => state.onlineUsers);
 
   useEffect(() => { getAllContacts(); }, [getAllContacts]);
 

@@ -6,8 +6,12 @@ import { useChatStore } from "../../store/useChatStore";
 const mouseClickSound = new Audio("/sounds/mouse-click.mp3");
 
 function ProfileHeader() {
-  const { logout, authUser, updateProfile } = useAuthStore();
-  const { isSoundEnabled, toggleSound } = useChatStore();
+  const logout = useAuthStore((state) => state.logout);
+  const authUser = useAuthStore((state) => state.authUser);
+  const updateProfile = useAuthStore((state) => state.updateProfile);
+
+  const isSoundEnabled = useChatStore((state) => state.isSoundEnabled);
+  const toggleSound = useChatStore((state) => state.toggleSound);
   const [selectedImg, setSelectedImg] = useState(null);
   
   const defaultAvatarPath = "/avatar.png"; 

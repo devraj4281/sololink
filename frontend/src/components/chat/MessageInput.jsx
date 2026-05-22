@@ -13,19 +13,18 @@ function MessageInput() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-  const { sendMessage, isSoundEnabled, selectedUser } = useChatStore();
+  const sendMessage = useChatStore((state) => state.sendMessage);
+  const isSoundEnabled = useChatStore((state) => state.isSoundEnabled);
+  const selectedUser = useChatStore((state) => state.selectedUser);
   const socket = useAuthStore((state) => state.socket);
 
   useEffect(() => {
     return () => {
-      if (imagePreview && imagePreview.startsWith("blob:")) {
-        URL.revokeObjectURL(imagePreview);
-      }
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
     };
-  }, [imagePreview]);
+  }, []);
 
   const handleTyping = (e) => {
     setText(e.target.value);
@@ -64,10 +63,11 @@ function MessageInput() {
     try {
       if (isSoundEnabled) setTimeout(() => playRandomKeyStrokeSound(), 0);
 
-      await sendMessage({
-        text: currentText,
-        image: currentImage,
-      });
+      const payload = {};
+      if (currentText) payload.text = currentText;
+      if (currentImage) payload.image = currentImage;
+
+      await sendMessage(payload);
     } catch (error) {
       toast.error("Failed to send message");
     } finally {
@@ -83,8 +83,11 @@ function MessageInput() {
       return;
     }
 
-    const previewUrl = URL.createObjectURL(file);
-    setImagePreview(previewUrl);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const removeImage = () => {
