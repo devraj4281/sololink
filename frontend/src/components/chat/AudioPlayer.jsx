@@ -10,14 +10,29 @@ function AudioPlayer({ audioUrl, duration: hintDuration }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [totalDuration, setTotalDuration] = useState(hintDuration || 0);
+  const [totalDuration, setTotalDuration] = useState(() => {
+    const parsed = Number(hintDuration);
+    return isFinite(parsed) && !isNaN(parsed) ? parsed : 0;
+  });
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     const onTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const onLoadedMetadata = () => setTotalDuration(audio.duration);
+    
+    const onLoadedMetadata = () => {
+      const dur = audio.duration;
+      if (typeof dur === "number" && isFinite(dur) && !isNaN(dur) && dur > 0) {
+        setTotalDuration(dur);
+      } else {
+        const parsed = Number(hintDuration);
+        if (isFinite(parsed) && !isNaN(parsed) && parsed > 0) {
+          setTotalDuration(parsed);
+        }
+      }
+    };
+
     const onEnded = () => {
       setIsPlaying(false);
       setCurrentTime(0);
@@ -31,7 +46,7 @@ function AudioPlayer({ audioUrl, duration: hintDuration }) {
       audio.removeEventListener("loadedmetadata", onLoadedMetadata);
       audio.removeEventListener("ended", onEnded);
     };
-  }, []);
+  }, [hintDuration]);
 
   const togglePlay = () => {
     const audio = audioRef.current;

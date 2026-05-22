@@ -10,6 +10,7 @@ function ChatsList() {
   const isUsersLoading = useChatStore((state) => state.isUsersLoading);
   const setSelectedUser = useChatStore((state) => state.setSelectedUser);
   const selectedUser = useChatStore((state) => state.selectedUser);
+  const contactNicknames = useChatStore((state) => state.contactNicknames);
 
   const onlineUsers = useAuthStore((state) => state.onlineUsers);
 
@@ -71,7 +72,7 @@ function ChatsList() {
                   className="text-sm truncate"
                   style={{ color: isActive ? "var(--primary)" : "var(--on-surface)", fontWeight: chat.unreadCount > 0 ? 700 : 600 }}
                 >
-                  {chat.fullName}
+                  {contactNicknames[chat._id] || chat.fullName}
                 </h4>
 
                 {/* REAL-TIME TIMESTAMP FIX */}

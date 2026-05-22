@@ -8,13 +8,13 @@ import { Check, CheckCheck } from "lucide-react";
  */
 function MessageStatusIcon({ status, className = "" }) {
   if (!status || status === "sent") {
-    return <Check className={`w-3.5 h-3.5 ${className}`} style={{ color: "rgba(255,255,255,0.55)" }} />;
+    return <Check className={`w-3.5 h-3.5 ${className}`} style={{ color: "rgba(255, 255, 255, 0.75)" }} />;
   }
   if (status === "delivered") {
-    return <CheckCheck className={`w-3.5 h-3.5 ${className}`} style={{ color: "rgba(255,255,255,0.55)" }} />;
+    return <CheckCheck className={`w-3.5 h-3.5 ${className}`} style={{ color: "rgba(255, 255, 255, 0.75)" }} />;
   }
   if (status === "read") {
-    return <CheckCheck className={`w-3.5 h-3.5 ${className}`} style={{ color: "#60d0ff" }} />;
+    return <CheckCheck className={`w-3.5 h-3.5 ${className}`} style={{ color: "#00ffd1" }} />;
   }
   return null;
 }

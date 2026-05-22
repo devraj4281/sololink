@@ -6,6 +6,7 @@ import ContactList from "../components/contacts/ContactList";
 import CallsList from "../components/calls/CallsList";
 import { MessageSquareIcon, UsersIcon, PhoneIcon, SettingsIcon, SunIcon, MoonIcon } from "lucide-react";
 import { useTheme } from "../hooks/useTheme";
+import SettingsPanel from "../components/settings/SettingsPanel";
 
 function MobileChatLayout() {
   const selectedUser = useChatStore((state) => state.selectedUser);
@@ -62,15 +63,11 @@ function MobileChatLayout() {
         </div>
 
         {/* Content area */}
-        <div className="flex-1 overflow-y-auto px-2 pb-2">
-          <div className="space-y-1">
-            {currentTab === "chats"    && <ChatsList />}
-            {currentTab === "contacts" && <ContactList />}
-            {currentTab === "calls"    && <CallsList />}
-            {currentTab === "settings" && (
-              <div className="p-4 text-center text-sm text-[var(--on-surface-variant)]">Settings coming soon</div>
-            )}
-          </div>
+        <div className={`flex-1 ${currentTab === "settings" ? "overflow-hidden" : "overflow-y-auto px-2 pb-2"}`}>
+          {currentTab === "chats"    && <div className="space-y-1"><ChatsList /></div>}
+          {currentTab === "contacts" && <div className="space-y-1"><ContactList /></div>}
+          {currentTab === "calls"    && <div className="space-y-1"><CallsList /></div>}
+          {currentTab === "settings" && <SettingsPanel />}
         </div>
 
         {/* Bottom Nav */}

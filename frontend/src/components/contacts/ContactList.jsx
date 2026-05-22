@@ -10,6 +10,7 @@ function ContactList() {
   const setSelectedUser = useChatStore((state) => state.setSelectedUser);
   const selectedUser = useChatStore((state) => state.selectedUser);
   const isUsersLoading = useChatStore((state) => state.isUsersLoading);
+  const contactNicknames = useChatStore((state) => state.contactNicknames);
 
   const onlineUsers = useAuthStore((state) => state.onlineUsers);
 
@@ -49,7 +50,7 @@ function ContactList() {
             </div>
             <div className="flex-1 min-w-0">
               <h4 className="text-sm font-semibold truncate" style={{ color: isActive ? "var(--primary)" : "var(--on-surface)" }}>
-                {contact.fullName}
+                {contactNicknames[contact._id] || contact.fullName}
               </h4>
               <p className="text-xs truncate mt-0.5" style={{ color: "var(--on-surface-variant)" }}>
                 {isOnline ? "Online" : "Offline"}

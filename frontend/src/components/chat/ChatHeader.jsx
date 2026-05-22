@@ -7,6 +7,7 @@ import DefaultAvatar from "../ui/DefaultAvatar";
 
 function ChatHeader() {
   const selectedUser = useChatStore((state) => state.selectedUser);
+  const contactNicknames = useChatStore((state) => state.contactNicknames);
   const setSelectedUser = useChatStore((state) => state.setSelectedUser);
   const typingUsers = useChatStore((state) => state.typingUsers);
 
@@ -83,7 +84,7 @@ function ChatHeader() {
           </div>
           <div>
             <h3 style={{ fontSize: "1.0625rem", fontWeight: 600, color: "var(--on-surface)" }}>
-              {selectedUser.fullName}
+              {contactNicknames[selectedUser._id] || selectedUser.fullName}
             </h3>
             <p style={{ fontSize: "0.75rem", fontWeight: 500, color: isTyping || isOnline ? "#34d399" : "var(--on-surface-variant)" }}>
               {getStatusText()}

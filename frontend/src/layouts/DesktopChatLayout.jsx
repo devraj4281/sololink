@@ -7,6 +7,7 @@ import ContactList from "../components/contacts/ContactList";
 import ChatContainer from "../components/chat/ChatContainer";
 import NoConversationPlaceholder from "../components/feedback/NoConversationPlaceholder";
 import CallsList from "../components/calls/CallsList";
+import SettingsPanel from "../components/settings/SettingsPanel";
 
 import { MessageSquareIcon, UsersIcon, PhoneIcon, SettingsIcon, LogOutIcon, BellIcon, BellOffIcon, CommandIcon, SunIcon, MoonIcon } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
@@ -172,7 +173,33 @@ function DesktopChatLayout() {
           {currentTab === "chats" && <ChatsList />}
           {currentTab === "contacts" && <ContactList />}
           {currentTab === "calls" && <CallsList />}
-          {currentTab === "settings" && <div className="p-4 text-center text-sm text-[var(--on-surface-variant)]">Settings coming soon</div>}
+          {currentTab === "settings" && (
+            <div className="p-4 space-y-6">
+              <div className="flex flex-col items-center text-center p-5 bg-[var(--surface-low)] rounded-2xl border border-[var(--surface-high)] shadow-sm">
+                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-[var(--primary)] mb-3">
+                  <img
+                    src={authUser?.profilePic || defaultAvatarPath}
+                    alt={authUser?.fullName}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      if (e.target.src !== window.location.origin + defaultAvatarPath) {
+                        e.target.src = defaultAvatarPath;
+                      }
+                    }}
+                  />
+                </div>
+                <h3 className="font-bold text-[var(--on-surface)] leading-tight">{authUser?.fullName}</h3>
+                <span className="text-xs text-[var(--on-surface-variant)] mt-1">{authUser?.email}</span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 mt-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                  Active Now
+                </span>
+              </div>
+              <p className="text-xs text-[var(--on-surface-variant)] text-center px-4 leading-relaxed">
+                Configure your complete profile details, application visual theme, and contact nicknames in the main panel on the right.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="px-4 pb-5">
@@ -189,7 +216,13 @@ function DesktopChatLayout() {
 
       {/* ── CHAT CONTAINER ── */}
       <div className="flex-1 flex flex-col overflow-hidden" style={{ background: S.lowest }}>
-        {selectedUser ? <ChatContainer /> : <NoConversationPlaceholder />}
+        {currentTab === "settings" ? (
+          <SettingsPanel />
+        ) : selectedUser ? (
+          <ChatContainer />
+        ) : (
+          <NoConversationPlaceholder />
+        )}
       </div>
     </div>
   );
