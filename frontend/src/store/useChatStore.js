@@ -26,7 +26,17 @@ export const useChatStore = create((set, get) => ({
   },
 
   setActiveTab: (tab) => set({ activeTab: tab }),
-  setSelectedUser: (user) => set({ selectedUser: user }),
+  setSelectedUser: (user) => {
+    set({ selectedUser: user });
+    // Immediately zero the badge without waiting for ChatContainer's useEffect
+    if (user) {
+      const { chats } = get();
+      const updated = chats.map((c) =>
+        c._id?.toString() === user._id?.toString() ? { ...c, unreadCount: 0 } : c
+      );
+      set({ chats: updated });
+    }
+  },
   setReplyingTo: (message) => set({ replyingTo: message }),
 
   getAllContacts: async () => {
@@ -230,16 +240,21 @@ export const useChatStore = create((set, get) => ({
     socket.on("newMessage", (newMessage) => {
       const { selectedUser, messages, calls } = get();
       const authUser = useAuthStore.getState().authUser;
-      const otherUserId =
-        newMessage.senderId === authUser._id ? newMessage.receiverId : newMessage.senderId;
+      // Helper: normalize any ID shape to string
+      const toStr = (id) => (id?._id || id)?.toString?.() ?? "";
+
+      const authId = toStr(authUser._id);
+      const senderIdStr = toStr(newMessage.senderId);
+      const receiverIdStr = toStr(newMessage.receiverId);
+      const otherUserId = senderIdStr === authId ? receiverIdStr : senderIdStr;
 
       const userMessages = messages[otherUserId] || [];
 
       // Emit delivered acknowledgment if we received it (not our own)
-      if (newMessage.senderId !== authUser._id) {
+      if (senderIdStr !== authId) {
         socket.emit("message:delivered", {
           messageId: newMessage._id,
-          senderId: newMessage.senderId,
+          senderId: senderIdStr,
         });
       }
 
@@ -249,16 +264,21 @@ export const useChatStore = create((set, get) => ({
         set({ calls: [newMessage, ...calls] });
       }
 
-      // Update chat list unread count (bump the conversation)
+      // Update chat list unread count — only increment if it's NOT the currently open chat
       const { chats } = get();
-      if (newMessage.senderId !== authUser._id) {
+      if (senderIdStr !== authId) {
+        const currentSelectedId = toStr(selectedUser?._id);
+        const isCurrentChat = currentSelectedId === senderIdStr;
+
         const updatedChats = chats.map((c) => {
-          if (c._id !== newMessage.senderId) return c;
-          // Only increment unread if chat is not currently selected
-          const isCurrentChat = selectedUser?._id === newMessage.senderId;
+          if (toStr(c._id) !== senderIdStr) return c;
           return {
             ...c,
-            lastMessage: { text: newMessage.text || (newMessage.audioUrl ? "[Voice Message]" : "[Image]"), type: newMessage.type, senderId: newMessage.senderId },
+            lastMessage: {
+              text: newMessage.text || (newMessage.audioUrl ? "[Voice Message]" : "[Image]"),
+              type: newMessage.type,
+              senderId: senderIdStr,
+            },
             lastMessageAt: newMessage.createdAt,
             unreadCount: isCurrentChat ? 0 : (c.unreadCount || 0) + 1,
           };
