@@ -68,8 +68,8 @@ function ChatsList() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between">
                 <h4
-                  className="text-sm font-semibold truncate"
-                  style={{ color: isActive ? "var(--primary)" : "var(--on-surface)" }}
+                  className="text-sm truncate"
+                  style={{ color: isActive ? "var(--primary)" : "var(--on-surface)", fontWeight: chat.unreadCount > 0 ? 700 : 600 }}
                 >
                   {chat.fullName}
                 </h4>
@@ -80,13 +80,29 @@ function ChatsList() {
                 </span>
               </div>
 
-              <p
-                className="text-xs truncate mt-0.5"
-                style={{ color: isActive ? "var(--primary)" : "var(--on-surface-variant)" }}
-              >
-                
-                {isOnline ? "Online" : chat.lastMessage?.text || "Tap to chat"}
-              </p>
+              <div className="flex items-center justify-between mt-0.5">
+                <p
+                  className="text-xs truncate"
+                  style={{ color: isActive ? "var(--primary)" : "var(--on-surface-variant)", fontWeight: chat.unreadCount > 0 ? 600 : 400 }}
+                >
+                  {chat.lastMessage?.text || "Tap to chat"}
+                </p>
+                {/* Unread badge */}
+                {chat.unreadCount > 0 && (
+                  <span
+                    className="shrink-0 ml-2 flex items-center justify-center rounded-full text-white font-bold animate-in fade-in"
+                    style={{
+                      minWidth: "18px",
+                      height: "18px",
+                      fontSize: "0.625rem",
+                      background: "#ef4444",
+                      padding: "0 4px",
+                    }}
+                  >
+                    {chat.unreadCount > 99 ? "99+" : chat.unreadCount}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         );

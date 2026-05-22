@@ -12,9 +12,30 @@ function ChatHeader() {
 
   const initiateCall = useCallStore((state) => state.initiateCall);
   const onlineUsers = useAuthStore((state) => state.onlineUsers);
+  const userLastSeen = useAuthStore((state) => state.userLastSeen);
   
   const isOnline = selectedUser ? onlineUsers.includes(selectedUser._id) : false;
   const isTyping = selectedUser ? typingUsers.includes(selectedUser._id) : false;
+
+  const getStatusText = () => {
+    if (isTyping) return "typing...";
+    if (isOnline) return "online";
+    const ls = userLastSeen[selectedUser?._id] || selectedUser?.lastSeen;
+    if (!ls) return "offline";
+    const diff = Date.now() - new Date(ls).getTime();
+    const mins = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (mins < 1) return "last seen just now";
+    if (mins < 60) return `last seen ${mins}m ago`;
+    if (hours < 24) {
+      return `last seen today at ${new Date(ls).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    if (days === 1) {
+      return `last seen yesterday at ${new Date(ls).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    return `last seen on ${new Date(ls).toLocaleDateString([], { month: 'short', day: 'numeric' })}`;
+  };
 
   useEffect(() => {
     const handleEscKey = (event) => {
@@ -65,7 +86,7 @@ function ChatHeader() {
               {selectedUser.fullName}
             </h3>
             <p style={{ fontSize: "0.75rem", fontWeight: 500, color: isTyping || isOnline ? "#34d399" : "var(--on-surface-variant)" }}>
-              {isTyping ? "typing..." : isOnline ? "online" : "offline"}
+              {getStatusText()}
             </p>
           </div>
         </div>

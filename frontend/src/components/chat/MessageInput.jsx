@@ -3,7 +3,9 @@ import useKeyboardSound from "../../hooks/useKeyboardSound";
 import { useChatStore } from "../../store/useChatStore";
 import { useAuthStore } from "../../store/useAuthStore";
 import toast from "react-hot-toast";
-import { PlusCircleIcon, SmileIcon, SendIcon, XIcon } from "lucide-react";
+import { PlusCircleIcon, SendIcon, XIcon, Mic } from "lucide-react";
+import VoiceRecorder from "./VoiceRecorder";
+import ReplyPreview from "./ReplyPreview";
 
 function MessageInput() {
   const { playRandomKeyStrokeSound } = useKeyboardSound();
@@ -11,6 +13,7 @@ function MessageInput() {
   const [imagePreview, setImagePreview] = useState(null);
   const [focused, setFocused] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const sendMessage = useChatStore((state) => state.sendMessage);
@@ -20,20 +23,16 @@ function MessageInput() {
 
   useEffect(() => {
     return () => {
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     };
   }, []);
 
   const handleTyping = (e) => {
     setText(e.target.value);
-    
+
     if (socket && selectedUser) {
       socket.emit("typing", { to: selectedUser._id });
-      
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      
       typingTimeoutRef.current = setTimeout(() => {
         socket.emit("stopTyping", { to: selectedUser._id });
       }, 2000);
@@ -48,13 +47,11 @@ function MessageInput() {
     const currentText = text.trim();
     const currentImage = imagePreview;
 
-    // Clear UI state synchronously before any async operations
     setText("");
     setImagePreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
     setIsSubmitting(true);
 
-    // Clear typing indicator immediately
     if (socket && selectedUser) {
       socket.emit("stopTyping", { to: selectedUser._id });
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -75,6 +72,26 @@ function MessageInput() {
     }
   };
 
+  const handleVoiceSend = async (blob, durationSecs) => {
+    setIsRecording(false);
+    if (!blob) return;
+
+    // Convert blob to base64
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64Audio = reader.result;
+      try {
+        await sendMessage({
+          audio: base64Audio,
+          audioDuration: durationSecs,
+        });
+      } catch (err) {
+        toast.error("Failed to send voice message");
+      }
+    };
+    reader.readAsDataURL(blob);
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -82,11 +99,8 @@ function MessageInput() {
       toast.error("Please select an image file");
       return;
     }
-
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result);
-    };
+    reader.onloadend = () => setImagePreview(reader.result);
     reader.readAsDataURL(file);
   };
 
@@ -95,14 +109,30 @@ function MessageInput() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  // Show voice recorder UI
+  if (isRecording) {
+    return (
+      <div className="p-4 md:p-6 shrink-0 w-full" style={{ background: "transparent" }}>
+        <div className="max-w-4xl mx-auto w-full">
+          <VoiceRecorder onSend={handleVoiceSend} onCancel={() => setIsRecording(false)} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 shrink-0 w-full" style={{ background: "transparent" }}>
-      <div 
-        className="max-w-4xl mx-auto w-full p-2 transition-shadow duration-300"
-        style={{ 
-          background: "var(--surface-lowest)", 
-          boxShadow: focused ? "0 8px 32px rgba(0,98,139,0.12)" : "0 4px 24px rgba(0,0,0,0.06)", 
-          borderRadius: "2rem" 
+      {/* Reply preview bar */}
+      <div className="max-w-4xl mx-auto w-full">
+        <ReplyPreview />
+      </div>
+
+      <div
+        className="max-w-4xl mx-auto w-full p-2 transition-shadow duration-300 mt-2"
+        style={{
+          background: "var(--surface-lowest)",
+          boxShadow: focused ? "0 8px 32px rgba(0,98,139,0.12)" : "0 4px 24px rgba(0,0,0,0.06)",
+          borderRadius: "2rem",
         }}
       >
         {imagePreview && (
@@ -137,7 +167,7 @@ function MessageInput() {
               value={text}
               onChange={handleTyping}
               onKeyDown={() => isSoundEnabled && playRandomKeyStrokeSound()}
-              autoComplete="off" 
+              autoComplete="off"
               style={{
                 width: "100%",
                 background: "transparent",
@@ -153,6 +183,19 @@ function MessageInput() {
             />
           </div>
 
+          {/* Mic button (only when no text/image) */}
+          {!text.trim() && !imagePreview && (
+            <button
+              type="button"
+              onClick={() => setIsRecording(true)}
+              className="w-11 h-11 flex items-center justify-center rounded-full shrink-0 hover:bg-slate-800 transition-colors"
+              style={{ color: "var(--on-surface-variant)" }}
+              title="Record voice message"
+            >
+              <Mic className="w-5 h-5" />
+            </button>
+          )}
+
           <button
             type="submit"
             disabled={!text.trim() && !imagePreview}
@@ -160,7 +203,7 @@ function MessageInput() {
             style={{
               background: "linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%)",
               color: "var(--on-primary)",
-              opacity: (!text.trim() && !imagePreview) ? 0.40 : 1,
+              opacity: !text.trim() && !imagePreview ? 0.4 : 1,
             }}
           >
             <SendIcon className="w-4 h-4 ml-0.5" />
