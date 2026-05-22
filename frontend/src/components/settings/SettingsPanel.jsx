@@ -255,7 +255,7 @@ function SettingsPanel() {
                   }`}
                 >
                   <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-500 flex items-center justify-center mb-4 shadow-sm">
-                    <SunIcon className="w-6 h-6 animate-pulse" />
+                    <Sun className="w-6 h-6 animate-pulse" />
                   </div>
                   <span className="font-bold text-[var(--on-surface)]">Light Mode</span>
                   <span className="text-xs text-[var(--on-surface-variant)] text-center mt-1">Clean, standard desktop feel. Great for sunny days.</span>
@@ -271,7 +271,7 @@ function SettingsPanel() {
                   }`}
                 >
                   <div className="w-12 h-12 rounded-full bg-indigo-950 text-indigo-400 flex items-center justify-center mb-4 shadow-sm">
-                    <MoonIcon className="w-6 h-6 animate-pulse" />
+                    <Moon className="w-6 h-6 animate-pulse" />
                   </div>
                   <span className="font-bold text-[var(--on-surface)]">Dark Mode</span>
                   <span className="text-xs text-[var(--on-surface-variant)] text-center mt-1">Sleek neon aesthetic. Gentle on eyes at night.</span>
