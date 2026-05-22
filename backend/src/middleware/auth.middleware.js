@@ -1,22 +1,32 @@
 import jwt from "jsonwebtoken";
-import User from "../models/User.js";
+import userRepository from "../repositories/user.repository.js";
 import { ENV } from "../lib/env.js";
+import AppError from "../lib/AppError.js";
+import catchAsync from "../lib/catchAsync.js";
 
-export const protectRoute = async (req, res, next) => {
+export const protectRoute = catchAsync(async (req, res, next) => {
+  const token = req.cookies.jwt_access;
+  
+  if (!token) {
+    throw new AppError("Unauthorized - No access token provided", 401);
+  }
+
   try {
-    const token = req.cookies.jwt;
-    if (!token) return res.status(401).json({ message: "Unauthorized - No token provided" });
-
     const decoded = jwt.verify(token, ENV.JWT_SECRET);
-    if (!decoded) return res.status(401).json({ message: "Unauthorized - Invalid token" });
-
-    const user = await User.findById(decoded.userId).select("-password");
-    if (!user) return res.status(404).json({ message: "User not found" });
+    const user = await userRepository.findByIdWithoutPassword(decoded.userId);
+    
+    if (!user) {
+      throw new AppError("Unauthorized - User not found", 401);
+    }
 
     req.user = user;
     next();
   } catch (error) {
-    console.log("Error in protectRoute middleware:", error);
-    res.status(500).json({ message: "Internal server error" });
+    if (error.name === "TokenExpiredError") {
+      const err = new AppError("Access token expired", 401);
+      err.code = "TOKEN_EXPIRED";
+      throw err;
+    }
+    throw new AppError("Unauthorized - Invalid access token", 401);
   }
-};
+});

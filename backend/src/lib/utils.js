@@ -1,24 +1,57 @@
 import jwt from "jsonwebtoken";
 import { ENV } from "./env.js";
 
-export const generateToken = (userId, res) => {
+export const generateTokens = (userId, res) => {
   const { JWT_SECRET } = ENV;
 
   if (!JWT_SECRET) {
     throw new Error("JWT_SECRET is not configured");
   }
 
-  const token = jwt.sign({ userId }, JWT_SECRET, {
+  // Short-lived access token
+  const accessToken = jwt.sign({ userId }, JWT_SECRET, {
+    expiresIn: "15m",
+  });
+
+  // Long-lived refresh token
+  const refreshToken = jwt.sign({ userId }, JWT_SECRET, {
     expiresIn: "7d",
   });
 
-  res.cookie("jwt", token, {
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+  const isProd = ENV.NODE_ENV === "production";
+
+  // Set access token cookie
+  res.cookie("jwt_access", accessToken, {
+    maxAge: 15 * 60 * 1000, // 15 mins
     httpOnly: true,
-    secure: true,
-    sameSite: "None",
+    secure: isProd,
+    sameSite: "Lax",
   });
 
-  return token;
+  // Set refresh token cookie
+  res.cookie("jwt_refresh", refreshToken, {
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    httpOnly: true,
+    secure: isProd,
+    sameSite: "Lax",
+  });
+
+  return { accessToken, refreshToken };
 };
 
+export const clearTokens = (res) => {
+  const isProd = ENV.NODE_ENV === "production";
+
+  res.cookie("jwt_access", "", {
+    maxAge: 0,
+    httpOnly: true,
+    secure: isProd,
+    sameSite: "Lax",
+  });
+  res.cookie("jwt_refresh", "", {
+    maxAge: 0,
+    httpOnly: true,
+    secure: isProd,
+    sameSite: "Lax",
+  });
+};

@@ -1,86 +1,109 @@
 import { sendWelcomeEmail } from "../emails/emailHandlers.js";
-import { generateToken } from "../lib/utils.js";
-import User from "../models/User.js";
+import { generateTokens, clearTokens } from "../lib/utils.js";
+import userRepository from "../repositories/user.repository.js";
 import bcrypt from "bcryptjs";
 import { ENV } from "../lib/env.js";
 import cloudinary from "../lib/cloudinary.js";
+import AppError from "../lib/AppError.js";
+import catchAsync from "../lib/catchAsync.js";
+import jwt from "jsonwebtoken";
 
-export const signup = async (req, res) => {
+export const signup = catchAsync(async (req, res) => {
   let { fullName, email, password } = req.body;
   email = email.toLowerCase();
 
-  try {
-    if (!fullName || !email || !password) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters" });
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ message: "Invalid email format" });
-    }
-
-    const user = await User.findOne({ email });
-    if (user) return res.status(400).json({ message: "Email already exists" });
-
-   
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const newUser = new User({
-      fullName,
-      email,
-      password: hashedPassword,
-    });
-
-    if (newUser) {
-      const savedUser = await newUser.save();
-      generateToken(savedUser._id, res);
-
-      res.status(201).json({
-        _id: newUser._id,
-        fullName: newUser.fullName,
-        email: newUser.email,
-        profilePic: newUser.profilePic,
-      });
-
-      try {
-        await sendWelcomeEmail(savedUser.email, savedUser.fullName, ENV.CLIENT_URL);
-      } catch (error) {
-        console.error("Failed to send welcome email:", error);
-      }
-    } else {
-      res.status(400).json({ message: "Invalid user data" });
-    }
-  } catch (error) {
-    console.log("Error in signup controller:", error);
-    res.status(500).json({ message: "Internal server error" });
+  const userExists = await userRepository.exists({ email });
+  if (userExists) {
+    throw new AppError("Email already exists", 400);
   }
-};
 
-export const login = async (req, res) => {
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  const newUser = await userRepository.create({
+    fullName,
+    email,
+    password: hashedPassword,
+  });
+
+  // Generate dual-token cookies
+  generateTokens(newUser._id, res);
+
+  res.status(201).json({
+    _id: newUser._id,
+    fullName: newUser.fullName,
+    email: newUser.email,
+    profilePic: newUser.profilePic,
+  });
+
+  try {
+    await sendWelcomeEmail(newUser.email, newUser.fullName, ENV.CLIENT_URL);
+  } catch (error) {
+    console.error("Failed to send welcome email:", error);
+  }
+});
+
+export const login = catchAsync(async (req, res) => {
   let { email, password } = req.body;
   email = email.toLowerCase();
 
-  if (!email || !password) {
-    return res.status(400).json({ message: "Email and password are required" });
+  const user = await userRepository.findOne({ email });
+  if (!user) {
+    throw new AppError("Invalid credentials", 400);
+  }
+
+  const isPasswordCorrect = await bcrypt.compare(password, user.password);
+  if (!isPasswordCorrect) {
+    throw new AppError("Invalid credentials", 400);
+  }
+
+  // Generate dual-token cookies
+  generateTokens(user._id, res);
+
+  res.status(200).json({
+    _id: user._id,
+    fullName: user.fullName,
+    email: user.email,
+    profilePic: user.profilePic,
+  });
+});
+
+export const logout = (req, res) => {
+  clearTokens(res);
+  res.status(200).json({ message: "Logged out successfully" });
+};
+
+export const updateProfile = catchAsync(async (req, res) => {
+  const { profilePic } = req.body;
+  const userId = req.user._id;
+
+  const uploadResponse = await cloudinary.uploader.upload(profilePic);
+
+  const updatedUser = await userRepository.findByIdAndUpdate(
+    userId,
+    { profilePic: uploadResponse.secure_url }
+  );
+
+  res.status(200).json(updatedUser);
+});
+
+export const refresh = catchAsync(async (req, res) => {
+  const refreshToken = req.cookies.jwt_refresh;
+  
+  if (!refreshToken) {
+    throw new AppError("Unauthorized - No refresh token provided", 401);
   }
 
   try {
-    const user = await User.findOne({ email });
+    const decoded = jwt.verify(refreshToken, ENV.JWT_SECRET);
+    const user = await userRepository.findByIdWithoutPassword(decoded.userId);
+    
     if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
+      throw new AppError("Unauthorized - User not found", 401);
     }
 
-    const isPasswordCorrect = await bcrypt.compare(password, user.password);
-    if (!isPasswordCorrect) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-
-    generateToken(user._id, res);
+    // Refresh both tokens
+    generateTokens(user._id, res);
 
     res.status(200).json({
       _id: user._id,
@@ -89,39 +112,6 @@ export const login = async (req, res) => {
       profilePic: user.profilePic,
     });
   } catch (error) {
-    console.error("Error in login controller:", error);
-    res.status(500).json({ message: "Internal server error" });
+    throw new AppError("Unauthorized - Invalid or expired refresh token", 401);
   }
-};
-
-export const logout = (_, res) => {
-  res.cookie("jwt", "", {
-    maxAge: 0,
-    httpOnly: true,
-    secure: true,
-    sameSite: "None",
-  });
-  res.status(200).json({ message: "Logged out successfully" });
-};
-
-export const updateProfile = async (req, res) => {
-  try {
-    const { profilePic } = req.body;
-    if (!profilePic) return res.status(400).json({ message: "Profile pic is required" });
-
-    const userId = req.user._id;
-
-    const uploadResponse = await cloudinary.uploader.upload(profilePic);
-
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { profilePic: uploadResponse.secure_url },
-      { new: true }
-    );
-
-    res.status(200).json(updatedUser);
-  } catch (error) {
-    console.log("Error in update profile:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
+});

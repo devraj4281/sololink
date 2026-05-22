@@ -5,13 +5,23 @@ import { ENV } from "./env.js";
 import { socketAuthMiddleware } from "../middleware/socket.auth.middleware.js";
 import Message from "../models/Message.js";
 import CallSession from "../models/CallSession.js";
+import conversationRepository from "../repositories/conversation.repository.js";
 
 const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: [ENV.CLIENT_URL],
+    origin: (origin, callback) => {
+      // Allow any localhost port in development (Vite shifts 5173→5174→5175)
+      if (ENV.NODE_ENV === "development" && (!origin || /^https?:\/\/localhost(:\d+)?$/.test(origin))) {
+        return callback(null, true);
+      }
+      if (origin === ENV.CLIENT_URL || !origin) {
+        return callback(null, true);
+      }
+      callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   },
   // Buffers events for up to 2 minutes during disconnects and replays them
@@ -27,18 +37,25 @@ const io = new Server(server, {
 // Apply authentication middleware to all socket connections
 io.use(socketAuthMiddleware);
 
-// userId → socketId map (single-server; migrate to Redis adapter for multi-instance)
+// userId → Set of socketIds map (single-server; migrate to Redis adapter for multi-instance)
 const userSocketMap = {};
 
 export function getReceiverSocketId(userId) {
-  return userSocketMap[userId?.toString()];
+  const sockets = userSocketMap[userId?.toString()];
+  if (sockets && sockets.size > 0) {
+    return Array.from(sockets)[0];
+  }
+  return undefined;
 }
 
 io.on("connection", async (socket) => {
   console.log("A user connected", socket.user.fullName, socket.recovered ? "(recovered)" : "(new)");
 
   const userId = socket.userId;
-  userSocketMap[userId] = socket.id;
+  if (!userSocketMap[userId]) {
+    userSocketMap[userId] = new Set();
+  }
+  userSocketMap[userId].add(socket.id);
 
   // Broadcast updated online users list
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
@@ -66,7 +83,12 @@ io.on("connection", async (socket) => {
   // ─── Disconnect ───────────────────────────────────────────────────────────
   socket.on("disconnect", () => {
     console.log("A user disconnected", socket.user?.fullName);
-    delete userSocketMap[userId];
+    if (userSocketMap[userId]) {
+      userSocketMap[userId].delete(socket.id);
+      if (userSocketMap[userId].size === 0) {
+        delete userSocketMap[userId];
+      }
+    }
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
 
@@ -122,6 +144,14 @@ io.on("connection", async (socket) => {
       });
       await newMessage.save();
 
+      // Pre-compute conversation cached preview
+      await conversationRepository.updateLastMessage(to, socket.userId, {
+        text: "[Declined Call]",
+        type: type || "call_voice",
+        senderId: to,
+        createdAt: newMessage.createdAt,
+      });
+
       socket.emit("newMessage", newMessage);
       if (receiverSocketId) {
         io.to(receiverSocketId).emit("newMessage", newMessage);
@@ -158,6 +188,14 @@ io.on("connection", async (socket) => {
       });
       await newMessage.save();
 
+      // Pre-compute conversation cached preview
+      await conversationRepository.updateLastMessage(socket.userId, to, {
+        text: "[Missed Call]",
+        type: type || "call_voice",
+        senderId: socket.userId,
+        createdAt: newMessage.createdAt,
+      });
+
       socket.emit("newMessage", newMessage);
       if (receiverSocketId) {
         io.to(receiverSocketId).emit("newMessage", newMessage);
@@ -193,6 +231,14 @@ io.on("connection", async (socket) => {
         callStatus: "completed",
       });
       await newMessage.save();
+
+      // Pre-compute conversation cached preview
+      await conversationRepository.updateLastMessage(socket.userId, to, {
+        text: `[Call Ended - ${duration || 0}s]`,
+        type: type || "call_voice",
+        senderId: socket.userId,
+        createdAt: newMessage.createdAt,
+      });
 
       socket.emit("newMessage", newMessage);
       if (receiverSocketId) {
@@ -291,6 +337,14 @@ io.on("connection", async (socket) => {
           callStatus: "missed",
         });
         await newMessage.save();
+
+        // Pre-compute conversation cached preview
+        await conversationRepository.updateLastMessage(callerId, receiverId, {
+          text: "[Missed Call]",
+          type: session.type,
+          senderId: callerId,
+          createdAt: newMessage.createdAt,
+        });
 
         // Notify both participants
         [callerId, receiverId].forEach((uid) => {

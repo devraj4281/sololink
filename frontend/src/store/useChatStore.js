@@ -8,6 +8,9 @@ export const useChatStore = create((set, get) => ({
   chats: [],
   calls: [], // Added calls state
   messages: {}, // Changed to object: { [userId]: [] }
+  cursors: {}, // Stores the nextCursor string for each userId
+  hasMore: {}, // Stores the hasMore boolean for each userId
+  isLoadMoreLoading: {}, // Stores loading state for pagination queries
   activeTab: "chats",
   selectedUser: null,
   isUsersLoading: false,
@@ -57,14 +60,52 @@ export const useChatStore = create((set, get) => ({
     }
 
     try {
-      const res = await axiosInstance.get(`/messages/${userId}`);
+      const res = await axiosInstance.get(`/messages/${userId}?limit=20`);
+      const { messages: fetchedMessages, nextCursor, hasMore } = res.data;
+      
       set({ 
-        messages: { ...get().messages, [userId]: res.data },
+        messages: { ...get().messages, [userId]: fetchedMessages },
+        cursors: { ...get().cursors, [userId]: nextCursor },
+        hasMore: { ...get().hasMore, [userId]: hasMore },
         isMessagesLoading: false
       });
     } catch (error) {
       toast.error(error.response?.data?.message || "Something went wrong");
       set({ isMessagesLoading: false });
+    }
+  },
+
+  loadMoreMessages: async (userId) => {
+    const { cursors, hasMore, isLoadMoreLoading, messages } = get();
+    const cursor = cursors[userId];
+    
+    // Guard against loading if no more pages or already loading
+    if (!hasMore[userId] || isLoadMoreLoading[userId] || !cursor) return;
+
+    set({
+      isLoadMoreLoading: { ...get().isLoadMoreLoading, [userId]: true }
+    });
+
+    try {
+      const res = await axiosInstance.get(`/messages/${userId}?limit=20&cursor=${cursor}`);
+      const { messages: fetchedMessages, nextCursor, hasMore: newHasMore } = res.data;
+      
+      const currentMessages = messages[userId] || [];
+      
+      set({
+        messages: {
+          ...get().messages,
+          [userId]: [...fetchedMessages, ...currentMessages] // Prepend older paginated history
+        },
+        cursors: { ...get().cursors, [userId]: nextCursor },
+        hasMore: { ...get().hasMore, [userId]: newHasMore },
+        isLoadMoreLoading: { ...get().isLoadMoreLoading, [userId]: false }
+      });
+    } catch (error) {
+      console.error("Error loading more messages:", error);
+      set({
+        isLoadMoreLoading: { ...get().isLoadMoreLoading, [userId]: false }
+      });
     }
   },
 
