@@ -25,7 +25,7 @@ export const generateTokens = (userId, res) => {
     maxAge: 15 * 60 * 1000, // 15 mins
     httpOnly: true,
     secure: isProd,
-    sameSite: "Lax",
+    sameSite: isProd ? "None" : "Lax",
   });
 
   // Set refresh token cookie
@@ -33,7 +33,7 @@ export const generateTokens = (userId, res) => {
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     httpOnly: true,
     secure: isProd,
-    sameSite: "Lax",
+    sameSite: isProd ? "None" : "Lax",
   });
 
   return { accessToken, refreshToken };
@@ -46,12 +46,12 @@ export const clearTokens = (res) => {
     maxAge: 0,
     httpOnly: true,
     secure: isProd,
-    sameSite: "Lax",
+    sameSite: isProd ? "None" : "Lax",
   });
   res.cookie("jwt_refresh", "", {
     maxAge: 0,
     httpOnly: true,
     secure: isProd,
-    sameSite: "Lax",
+    sameSite: isProd ? "None" : "Lax",
   });
 };
