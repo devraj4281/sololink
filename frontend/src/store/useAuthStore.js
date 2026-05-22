@@ -12,6 +12,7 @@ export const useAuthStore = create((set, get) => ({
   isLoggingIn: false,
   socket: null,
   onlineUsers: [],
+  userLastSeen: {}, // { [userId]: Date | null }
 
   checkAuth: async () => {
     try {
@@ -85,16 +86,33 @@ export const useAuthStore = create((set, get) => ({
     if (!authUser || get().socket?.connected) return;
 
     const socket = io(BASE_URL, {
-      withCredentials: true, // this ensures cookies are sent with the connection
+      withCredentials: true,
     });
 
     socket.connect();
-
     set({ socket });
 
-    // listen for online users event
     socket.on("getOnlineUsers", (userIds) => {
       set({ onlineUsers: userIds });
+    });
+
+    // Granular presence: user came online
+    socket.on("user:online", (userId) => {
+      set((state) => ({
+        onlineUsers: state.onlineUsers.includes(userId)
+          ? state.onlineUsers
+          : [...state.onlineUsers, userId],
+        // Update lastSeen map if we track it
+        userLastSeen: { ...state.userLastSeen, [userId]: null },
+      }));
+    });
+
+    // Granular presence: user went offline
+    socket.on("user:offline", ({ userId, lastSeen }) => {
+      set((state) => ({
+        onlineUsers: state.onlineUsers.filter((id) => id !== userId),
+        userLastSeen: { ...state.userLastSeen, [userId]: lastSeen },
+      }));
     });
   },
 
