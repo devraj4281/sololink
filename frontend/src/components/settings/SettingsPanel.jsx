@@ -247,7 +247,7 @@ function SettingsPanel() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Light Mode Card */}
                 <button
-                  onClick={() => !isDark && toggleTheme()}
+                  onClick={() => isDark && toggleTheme()}
                   className={`flex flex-col items-center p-6 rounded-2xl border-2 transition-all ${
                     !isDark
                       ? "border-[var(--primary)] bg-white shadow-lg scale-[1.02]"
@@ -263,7 +263,7 @@ function SettingsPanel() {
 
                 {/* Dark Mode Card */}
                 <button
-                  onClick={() => isDark && toggleTheme()}
+                  onClick={() => !isDark && toggleTheme()}
                   className={`flex flex-col items-center p-6 rounded-2xl border-2 transition-all ${
                     isDark
                       ? "border-[var(--primary)] bg-[var(--surface-low)] shadow-lg scale-[1.02]"
