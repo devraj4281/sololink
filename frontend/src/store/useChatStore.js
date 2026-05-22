@@ -6,18 +6,19 @@ import { useAuthStore } from "./useAuthStore";
 export const useChatStore = create((set, get) => ({
   allContacts: [],
   chats: [],
-  calls: [], // Added calls state
-  messages: {}, // Changed to object: { [userId]: [] }
-  cursors: {}, // Stores the nextCursor string for each userId
-  hasMore: {}, // Stores the hasMore boolean for each userId
-  isLoadMoreLoading: {}, // Stores loading state for pagination queries
+  calls: [],
+  messages: {}, // { [userId]: [] }
+  cursors: {},
+  hasMore: {},
+  isLoadMoreLoading: {},
   activeTab: "chats",
   selectedUser: null,
   isUsersLoading: false,
   isMessagesLoading: false,
-  isCallsLoading: false, // Added loading state for calls
-  typingUsers: [], // Array of user IDs currently typing
+  isCallsLoading: false,
+  typingUsers: [],
   isSoundEnabled: JSON.parse(localStorage.getItem("isSoundEnabled")) === true,
+  replyingTo: null, // Message being replied to
 
   toggleSound: () => {
     localStorage.setItem("isSoundEnabled", !get().isSoundEnabled);
@@ -25,9 +26,8 @@ export const useChatStore = create((set, get) => ({
   },
 
   setActiveTab: (tab) => set({ activeTab: tab }),
-  setSelectedUser: (user) => {
-    set({ selectedUser: user });
-  },
+  setSelectedUser: (user) => set({ selectedUser: user }),
+  setReplyingTo: (message) => set({ replyingTo: message }),
 
   getAllContacts: async () => {
     set({ isUsersLoading: true });
@@ -35,18 +35,19 @@ export const useChatStore = create((set, get) => ({
       const res = await axiosInstance.get("/messages/contacts");
       set({ allContacts: res.data });
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Failed to load contacts");
     } finally {
       set({ isUsersLoading: false });
     }
   },
+
   getMyChatPartners: async () => {
     set({ isUsersLoading: true });
     try {
       const res = await axiosInstance.get("/messages/chats");
       set({ chats: res.data });
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Failed to load chats");
     } finally {
       set({ isUsersLoading: false });
     }
@@ -54,7 +55,6 @@ export const useChatStore = create((set, get) => ({
 
   getMessagesByUserId: async (userId) => {
     const { messages } = get();
-    // Only show loading if we don't have messages for this user yet
     if (!messages[userId]) {
       set({ isMessagesLoading: true });
     }
@@ -62,13 +62,16 @@ export const useChatStore = create((set, get) => ({
     try {
       const res = await axiosInstance.get(`/messages/${userId}?limit=20`);
       const { messages: fetchedMessages, nextCursor, hasMore } = res.data;
-      
-      set({ 
+
+      set({
         messages: { ...get().messages, [userId]: fetchedMessages },
         cursors: { ...get().cursors, [userId]: nextCursor },
         hasMore: { ...get().hasMore, [userId]: hasMore },
-        isMessagesLoading: false
+        isMessagesLoading: false,
       });
+
+      // Mark conversation as read when we open it
+      axiosInstance.post(`/messages/read/${userId}`).catch(() => {});
     } catch (error) {
       toast.error(error.response?.data?.message || "Something went wrong");
       set({ isMessagesLoading: false });
@@ -78,34 +81,27 @@ export const useChatStore = create((set, get) => ({
   loadMoreMessages: async (userId) => {
     const { cursors, hasMore, isLoadMoreLoading, messages } = get();
     const cursor = cursors[userId];
-    
-    // Guard against loading if no more pages or already loading
     if (!hasMore[userId] || isLoadMoreLoading[userId] || !cursor) return;
 
-    set({
-      isLoadMoreLoading: { ...get().isLoadMoreLoading, [userId]: true }
-    });
+    set({ isLoadMoreLoading: { ...get().isLoadMoreLoading, [userId]: true } });
 
     try {
       const res = await axiosInstance.get(`/messages/${userId}?limit=20&cursor=${cursor}`);
       const { messages: fetchedMessages, nextCursor, hasMore: newHasMore } = res.data;
-      
       const currentMessages = messages[userId] || [];
-      
+
       set({
         messages: {
           ...get().messages,
-          [userId]: [...fetchedMessages, ...currentMessages] // Prepend older paginated history
+          [userId]: [...fetchedMessages, ...currentMessages],
         },
         cursors: { ...get().cursors, [userId]: nextCursor },
         hasMore: { ...get().hasMore, [userId]: newHasMore },
-        isLoadMoreLoading: { ...get().isLoadMoreLoading, [userId]: false }
+        isLoadMoreLoading: { ...get().isLoadMoreLoading, [userId]: false },
       });
     } catch (error) {
       console.error("Error loading more messages:", error);
-      set({
-        isLoadMoreLoading: { ...get().isLoadMoreLoading, [userId]: false }
-      });
+      set({ isLoadMoreLoading: { ...get().isLoadMoreLoading, [userId]: false } });
     }
   },
 
@@ -122,38 +118,106 @@ export const useChatStore = create((set, get) => ({
   },
 
   sendMessage: async (messageData) => {
-    const { selectedUser, messages } = get();
+    const { selectedUser, messages, replyingTo } = get();
     const { authUser } = useAuthStore.getState();
     const userId = selectedUser._id;
     const userMessages = messages[userId] || [];
 
     const tempId = `temp-${Date.now()}`;
-
     const optimisticMessage = {
       _id: tempId,
       senderId: authUser._id,
       receiverId: userId,
       text: messageData.text,
       image: messageData.image,
+      audioUrl: messageData.audioUrl,
+      audioDuration: messageData.audioDuration,
+      type: messageData.audioUrl ? "audio" : messageData.image ? "image" : "text",
       createdAt: new Date().toISOString(),
+      status: "sent",
+      replyTo: replyingTo || null,
       isOptimistic: true,
     };
 
-    set({ 
-      messages: { ...messages, [userId]: [...userMessages, optimisticMessage] } 
+    set({
+      messages: { ...messages, [userId]: [...userMessages, optimisticMessage] },
+      replyingTo: null,
     });
 
     try {
-      const res = await axiosInstance.post(`/messages/send/${userId}`, messageData);
-      const updatedMessages = get().messages[userId].filter(m => m._id !== tempId);
-      set({ 
-        messages: { ...get().messages, [userId]: [...updatedMessages, res.data] } 
-      });
+      const payload = {};
+      if (messageData.text) payload.text = messageData.text;
+      if (messageData.image) payload.image = messageData.image;
+      if (messageData.audio) payload.audio = messageData.audio;
+      if (messageData.audioDuration) payload.audioDuration = messageData.audioDuration;
+      if (replyingTo) payload.replyToMessageId = replyingTo._id;
+
+      const res = await axiosInstance.post(`/messages/send/${userId}`, payload);
+      const updatedMessages = get().messages[userId].filter((m) => m._id !== tempId);
+      set({ messages: { ...get().messages, [userId]: [...updatedMessages, res.data] } });
     } catch (error) {
-      set({ 
-        messages: { ...get().messages, [userId]: userMessages } 
-      });
+      set({ messages: { ...get().messages, [userId]: userMessages } });
       toast.error(error.response?.data?.message || "Something went wrong");
+    }
+  },
+
+  addReaction: async (messageId, emoji, userId) => {
+    // Optimistic update
+    const updateMessageReactions = (msgs, msgId, emojiKey, myId, remove) => {
+      return msgs.map((m) => {
+        if (m._id !== msgId) return m;
+        const reactions = { ...(m.reactions || {}) };
+        const current = reactions[emojiKey] ? [...reactions[emojiKey]] : [];
+        if (remove) {
+          reactions[emojiKey] = current.filter((id) => id?.toString() !== myId?.toString());
+          if (reactions[emojiKey].length === 0) delete reactions[emojiKey];
+        } else {
+          reactions[emojiKey] = [...current, myId];
+        }
+        return { ...m, reactions };
+      });
+    };
+
+    // Determine if it's a remove (already reacted)
+    const { messages, selectedUser } = get();
+    const uid = selectedUser?._id;
+    const currentMsgs = messages[uid] || [];
+    const msg = currentMsgs.find((m) => m._id === messageId);
+    const alreadyReacted =
+      msg?.reactions?.[emoji]?.map((id) => id?.toString()).includes(userId?.toString());
+
+    set({
+      messages: {
+        ...messages,
+        [uid]: updateMessageReactions(currentMsgs, messageId, emoji, userId, alreadyReacted),
+      },
+    });
+
+    try {
+      await axiosInstance.post(`/messages/${messageId}/reactions`, { emoji });
+    } catch (error) {
+      // Rollback
+      set({ messages: { ...get().messages, [uid]: currentMsgs } });
+      toast.error("Failed to react to message");
+    }
+  },
+
+  deleteMessage: async (messageId) => {
+    const { messages, selectedUser } = get();
+    const uid = selectedUser?._id;
+    const currentMsgs = messages[uid] || [];
+
+    // Optimistic: mark as deleted
+    const optimistic = currentMsgs.map((m) =>
+      m._id === messageId ? { ...m, isDeleted: true, text: null, image: null, audioUrl: null } : m
+    );
+    set({ messages: { ...messages, [uid]: optimistic } });
+
+    try {
+      await axiosInstance.post(`/messages/${messageId}/delete`);
+    } catch (error) {
+      set({ messages: { ...get().messages, [uid]: currentMsgs } });
+      toast.error("Failed to delete message");
     }
   },
 
@@ -165,29 +229,108 @@ export const useChatStore = create((set, get) => ({
 
     socket.on("newMessage", (newMessage) => {
       const { selectedUser, messages, calls } = get();
-      
-      // Determine which conversation this belongs to
       const authUser = useAuthStore.getState().authUser;
-      const otherUserId = newMessage.senderId === authUser._id ? newMessage.receiverId : newMessage.senderId;
-      
-      const userMessages = messages[otherUserId] || [];
-      
-      set({ 
-        messages: { ...messages, [otherUserId]: [...userMessages, newMessage] } 
-      });
+      const otherUserId =
+        newMessage.senderId === authUser._id ? newMessage.receiverId : newMessage.senderId;
 
-      // Live-update the calls cache if it's already loaded
+      const userMessages = messages[otherUserId] || [];
+
+      // Emit delivered acknowledgment if we received it (not our own)
+      if (newMessage.senderId !== authUser._id) {
+        socket.emit("message:delivered", {
+          messageId: newMessage._id,
+          senderId: newMessage.senderId,
+        });
+      }
+
+      set({ messages: { ...messages, [otherUserId]: [...userMessages, newMessage] } });
+
       if (newMessage.type?.startsWith("call_") && calls.length > 0) {
         set({ calls: [newMessage, ...calls] });
+      }
+
+      // Update chat list unread count (bump the conversation)
+      const { chats } = get();
+      if (newMessage.senderId !== authUser._id) {
+        const updatedChats = chats.map((c) => {
+          if (c._id !== newMessage.senderId) return c;
+          // Only increment unread if chat is not currently selected
+          const isCurrentChat = selectedUser?._id === newMessage.senderId;
+          return {
+            ...c,
+            lastMessage: { text: newMessage.text || (newMessage.audioUrl ? "[Voice Message]" : "[Image]"), type: newMessage.type, senderId: newMessage.senderId },
+            lastMessageAt: newMessage.createdAt,
+            unreadCount: isCurrentChat ? 0 : (c.unreadCount || 0) + 1,
+          };
+        });
+        set({ chats: updatedChats });
       }
 
       if (isSoundEnabled && otherUserId === selectedUser?._id) {
         const notificationSound = new Audio("/sounds/notification.mp3");
         notificationSound.currentTime = 0;
-        notificationSound.play().catch((e) => console.log("Audio play failed:", e));
+        notificationSound.play().catch(() => {});
       }
     });
 
+    // Message delivery/read status updates
+    socket.on("message:status-updated", ({ messageId, status, deliveredAt, readAt }) => {
+      const { messages } = get();
+      const uid = selectedUser?._id;
+      if (!uid || !messages[uid]) return;
+      const updated = messages[uid].map((m) =>
+        m._id === messageId ? { ...m, status, deliveredAt, readAt } : m
+      );
+      set({ messages: { ...messages, [uid]: updated } });
+    });
+
+    socket.on("message:status-updated-bulk", ({ messageIds, status, readAt }) => {
+      const { messages } = get();
+      const uid = selectedUser?._id;
+      if (!uid || !messages[uid]) return;
+      const idSet = new Set(messageIds);
+      const updated = messages[uid].map((m) =>
+        idSet.has(m._id) ? { ...m, status, readAt } : m
+      );
+      set({ messages: { ...messages, [uid]: updated } });
+    });
+
+    // Reaction events
+    socket.on("message:reaction-added", ({ messageId, emoji, userId, reactions }) => {
+      const { messages } = get();
+      const uid = selectedUser?._id;
+      if (!uid || !messages[uid]) return;
+      const updated = messages[uid].map((m) =>
+        m._id === messageId ? { ...m, reactions } : m
+      );
+      set({ messages: { ...messages, [uid]: updated } });
+    });
+
+    socket.on("message:reaction-removed", ({ messageId, emoji, userId, reactions }) => {
+      const { messages } = get();
+      const uid = selectedUser?._id;
+      if (!uid || !messages[uid]) return;
+      const updated = messages[uid].map((m) =>
+        m._id === messageId ? { ...m, reactions } : m
+      );
+      set({ messages: { ...messages, [uid]: updated } });
+    });
+
+    // Message deleted by sender
+    socket.on("message:deleted", ({ messageId }) => {
+      const { messages } = get();
+      Object.keys(messages).forEach((uid) => {
+        const updated = messages[uid].map((m) =>
+          m._id === messageId
+            ? { ...m, isDeleted: true, text: null, image: null, audioUrl: null }
+            : m
+        );
+        messages[uid] = updated;
+      });
+      set({ messages: { ...messages } });
+    });
+
+    // Typing
     socket.on("userTyping", ({ userId }) => {
       set((state) => {
         if (!state.typingUsers.includes(userId)) {
@@ -207,7 +350,21 @@ export const useChatStore = create((set, get) => ({
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
     socket.off("newMessage");
+    socket.off("message:status-updated");
+    socket.off("message:status-updated-bulk");
+    socket.off("message:reaction-added");
+    socket.off("message:reaction-removed");
+    socket.off("message:deleted");
     socket.off("userTyping");
     socket.off("userStoppedTyping");
+  },
+
+  // Mark a specific conversation as read locally (called when user opens chat)
+  markChatAsRead: (userId) => {
+    const { chats } = get();
+    const updated = chats.map((c) =>
+      c._id.toString() === userId.toString() ? { ...c, unreadCount: 0 } : c
+    );
+    set({ chats: updated });
   },
 }));
