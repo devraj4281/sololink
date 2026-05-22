@@ -1,12 +1,17 @@
 import { useEffect } from "react";
 import { useChatStore } from "../../store/useChatStore";
 import { useAuthStore } from "../../store/useAuthStore";
+import { useCallStore } from "../../store/useCallStore";
 import CallItem from "./CallItem";
 import { PhoneMissedIcon } from "lucide-react";
 
 function CallsList() {
-  const { calls, isCallsLoading, fetchCallHistory, setSelectedUser } = useChatStore();
-  const { authUser } = useAuthStore();
+  const calls = useChatStore((state) => state.calls || []);
+  const isCallsLoading = useChatStore((state) => state.isCallsLoading);
+  const fetchCallHistory = useChatStore((state) => state.fetchCallHistory);
+  const setSelectedUser = useChatStore((state) => state.setSelectedUser);
+
+  const authUser = useAuthStore((state) => state.authUser);
 
   useEffect(() => {
     // Only fetch if we don't have cached results yet
