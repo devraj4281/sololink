@@ -235,6 +235,25 @@ function ChatContainer() {
     return reactions;
   };
 
+  // Build a senderName string for a given message
+  const getSenderName = useCallback(
+    (msg) => {
+      const msgSenderId = (msg.senderId?._id || msg.senderId)?.toString();
+      return msgSenderId === authUser._id?.toString()
+        ? "You"
+        : selectedUser?.fullName || "";
+    },
+    [authUser, selectedUser]
+  );
+
+  // Enrich message with senderName before storing as replyingTo
+  const handleReply = useCallback(
+    (msg) => {
+      setReplyingTo({ ...msg, senderName: getSenderName(msg) });
+    },
+    [setReplyingTo, getSenderName]
+  );
+
   if (!selectedUser) {
     return <div className="flex-1" style={{ background: "var(--surface)" }} />;
   }
@@ -357,6 +376,15 @@ function ChatContainer() {
                             {msg.replyTo && !msg.isDeleted && (
                               <RepliedMessage
                                 replyTo={msg.replyTo}
+                                senderName={
+                                  // replyTo.senderId might be string or populated obj
+                                  (() => {
+                                    const rSenderId = (msg.replyTo.senderId?._id || msg.replyTo.senderId)?.toString();
+                                    return rSenderId === authUser._id?.toString()
+                                      ? "You"
+                                      : selectedUser?.fullName || "";
+                                  })()
+                                }
                                 isMe={msgIsMe}
                                 onJump={() => scrollToMessage(msg.replyTo._id || msg.replyTo)}
                               />
@@ -441,7 +469,7 @@ function ChatContainer() {
           position={{ x: contextMenu.x, y: contextMenu.y }}
           isMe={isMe(contextMenu.msg)}
           isDeleted={contextMenu.msg.isDeleted}
-          onReply={() => { setReplyingTo(contextMenu.msg); setContextMenu(null); }}
+          onReply={() => { handleReply(contextMenu.msg); setContextMenu(null); }}
           onDelete={() => { deleteMessage(contextMenu.msg._id); setContextMenu(null); }}
           onCopy={
             contextMenu.msg.text

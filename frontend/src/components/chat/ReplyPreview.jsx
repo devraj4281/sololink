@@ -1,9 +1,10 @@
-import { X } from "lucide-react";
+import { X, Mic, Image as ImageIcon } from "lucide-react";
 import { useChatStore } from "../../store/useChatStore";
+import { useAuthStore } from "../../store/useAuthStore";
 
 /**
- * Shows a preview bar above the message input when the user is replying
- * to a specific message. Clicking X cancels the reply.
+ * Telegram-style reply preview bar shown above the message input.
+ * Displays: colored bar | "Reply to [Name]" | content snippet | thumbnail | X
  */
 function ReplyPreview() {
   const replyingTo = useChatStore((state) => state.replyingTo);
@@ -11,37 +12,55 @@ function ReplyPreview() {
 
   if (!replyingTo) return null;
 
-  const getPreviewText = () => {
-    if (replyingTo.isDeleted) return "🚫 This message was deleted";
-    if (replyingTo.type === "audio") return "🎤 Voice message";
-    if (replyingTo.image) return "📷 Image";
-    return replyingTo.text || "";
+  const { senderName, text, image, audioUrl, isDeleted, type } = replyingTo;
+
+  const getPreviewContent = () => {
+    if (isDeleted) return { icon: null, label: "🚫 Message deleted" };
+    if (type === "audio" || audioUrl) return { icon: <Mic className="w-3 h-3 shrink-0" />, label: "Voice message" };
+    if (image) return { icon: <ImageIcon className="w-3 h-3 shrink-0" />, label: "Photo" };
+    return { icon: null, label: text || "" };
   };
 
+  const { icon, label } = getPreviewContent();
+
   return (
-    <div
-      className="flex items-center gap-2 px-4 pt-2 animate-in fade-in slide-in-from-bottom-2"
-    >
+    <div className="px-3 pb-1 animate-in fade-in slide-in-from-bottom-1 duration-150">
       <div
-        className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl min-w-0"
-        style={{ background: "var(--surface-high)", borderLeft: "3px solid var(--primary)" }}
+        className="flex items-center gap-2 px-3 py-2 rounded-2xl"
+        style={{
+          background: "var(--surface-high)",
+          borderLeft: "3px solid var(--primary)",
+        }}
       >
+        {/* Image thumbnail */}
+        {image && !isDeleted && (
+          <img
+            src={image}
+            alt=""
+            className="w-9 h-9 rounded-lg object-cover shrink-0"
+          />
+        )}
+
+        {/* Text block */}
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold truncate" style={{ color: "var(--primary)" }}>
-            Reply
+            {senderName || "Reply"}
           </p>
-          <p className="text-xs truncate" style={{ color: "var(--on-surface-variant)" }}>
-            {getPreviewText()}
+          <p className="text-xs truncate flex items-center gap-1 mt-0.5" style={{ color: "var(--on-surface-variant)" }}>
+            {icon}
+            <span className="truncate">{label}</span>
           </p>
         </div>
+
+        {/* Cancel */}
+        <button
+          onClick={() => setReplyingTo(null)}
+          className="w-7 h-7 flex items-center justify-center rounded-full shrink-0 transition-colors hover:bg-red-500/10"
+          style={{ color: "var(--on-surface-variant)" }}
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
-      <button
-        onClick={() => setReplyingTo(null)}
-        className="w-7 h-7 flex items-center justify-center rounded-full shrink-0 hover:bg-red-500/10 transition-colors"
-        style={{ color: "var(--on-surface-variant)" }}
-      >
-        <X className="w-4 h-4" />
-      </button>
     </div>
   );
 }
