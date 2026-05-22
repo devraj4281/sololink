@@ -4,6 +4,7 @@ import express from "express";
 import { ENV } from "./env.js";
 import { socketAuthMiddleware } from "../middleware/socket.auth.middleware.js";
 import Message from "../models/Message.js";
+import User from "../models/User.js";
 import CallSession from "../models/CallSession.js";
 import conversationRepository from "../repositories/conversation.repository.js";
 
@@ -80,13 +81,24 @@ io.on("connection", async (socket) => {
     }
   }
 
+  // ─── Online Presence (set isOnline=true on connect) ─────────────────────
+  User.findByIdAndUpdate(userId, { isOnline: true }).catch(() => {});
+  io.emit("user:online", userId);
+
   // ─── Disconnect ───────────────────────────────────────────────────────────
-  socket.on("disconnect", () => {
+  socket.on("disconnect", async () => {
     console.log("A user disconnected", socket.user?.fullName);
     if (userSocketMap[userId]) {
       userSocketMap[userId].delete(socket.id);
       if (userSocketMap[userId].size === 0) {
         delete userSocketMap[userId];
+        // Only mark offline if this was the last socket for this user
+        try {
+          await User.findByIdAndUpdate(userId, { isOnline: false, lastSeen: new Date() });
+        } catch (err) {
+          console.error("Error updating lastSeen:", err);
+        }
+        io.emit("user:offline", { userId, lastSeen: new Date() });
       }
     }
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
@@ -384,6 +396,51 @@ io.on("connection", async (socket) => {
     const receiverSocketId = getReceiverSocketId(to);
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("userStoppedTyping", { userId: socket.userId });
+    }
+  });
+
+  // ─── Message Status: Delivered ────────────────────────────────────────────
+  // Emitted by receiver's client when they receive a message
+  socket.on("message:delivered", async ({ messageId, senderId }) => {
+    try {
+      const msg = await Message.findByIdAndUpdate(
+        messageId,
+        { status: "delivered", deliveredAt: new Date() },
+        { new: true }
+      );
+      if (!msg) return;
+      const senderSocketId = getReceiverSocketId(senderId);
+      if (senderSocketId) {
+        io.to(senderSocketId).emit("message:status-updated", {
+          messageId,
+          status: "delivered",
+          deliveredAt: msg.deliveredAt,
+        });
+      }
+    } catch (err) {
+      console.error("Error updating delivered status:", err);
+    }
+  });
+
+  // ─── Message Status: Read ─────────────────────────────────────────────────
+  // Emitted by receiver's client when they view a message in the chat window
+  socket.on("message:read", async ({ messageIds, senderId }) => {
+    try {
+      const ids = Array.isArray(messageIds) ? messageIds : [messageIds];
+      await Message.updateMany(
+        { _id: { $in: ids }, status: { $ne: "read" } },
+        { status: "read", readAt: new Date() }
+      );
+      const senderSocketId = getReceiverSocketId(senderId);
+      if (senderSocketId) {
+        io.to(senderSocketId).emit("message:status-updated-bulk", {
+          messageIds: ids,
+          status: "read",
+          readAt: new Date(),
+        });
+      }
+    } catch (err) {
+      console.error("Error updating read status:", err);
     }
   });
 });

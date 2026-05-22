@@ -16,6 +16,14 @@ const conversationSchema = new mongoose.Schema(
       senderId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       createdAt: { type: Date, default: Date.now },
     },
+    // ─── Unread Counters ──────────────────────────────────────────────────────
+    // Maps userId (as string) → unread count for that user
+    // Example: { 'user1Id': 0, 'user2Id': 3 }
+    unreadCount: {
+      type: Map,
+      of: Number,
+      default: () => new Map(),
+    },
   },
   { timestamps: true }
 );

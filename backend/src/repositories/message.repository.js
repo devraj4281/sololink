@@ -6,6 +6,10 @@ class MessageRepository {
     return message.save();
   }
 
+  async findById(id) {
+    return Message.findById(id);
+  }
+
   async findMessagesInThreadWithCursor(myId, partnerId, cursor, limit = 20) {
     const query = {
       $or: [
@@ -14,14 +18,14 @@ class MessageRepository {
       ],
     };
 
-
     if (cursor) {
       query.createdAt = { $lt: new Date(cursor) };
     }
 
     return Message.find(query)
       .sort({ createdAt: -1 })
-      .limit(limit + 1);
+      .limit(limit + 1)
+      .populate("replyTo", "text senderId audioUrl image type isDeleted");
   }
 
   async findCallLogs(myId, limit = 100) {
