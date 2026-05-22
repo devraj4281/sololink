@@ -6,9 +6,12 @@ import { useAuthStore } from "../../store/useAuthStore";
 import DefaultAvatar from "../ui/DefaultAvatar";
 
 function ChatHeader() {
-  const { selectedUser, setSelectedUser, typingUsers } = useChatStore();
-  const { initiateCall } = useCallStore();
-  const { onlineUsers } = useAuthStore();
+  const selectedUser = useChatStore((state) => state.selectedUser);
+  const setSelectedUser = useChatStore((state) => state.setSelectedUser);
+  const typingUsers = useChatStore((state) => state.typingUsers);
+
+  const initiateCall = useCallStore((state) => state.initiateCall);
+  const onlineUsers = useAuthStore((state) => state.onlineUsers);
   
   const isOnline = selectedUser ? onlineUsers.includes(selectedUser._id) : false;
   const isTyping = selectedUser ? typingUsers.includes(selectedUser._id) : false;

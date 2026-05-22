@@ -9,14 +9,29 @@ import DefaultAvatar from "../ui/DefaultAvatar";
 import CallSystemMessage from "../calls/CallSystemMessage";
 import DateSeparator from "./DateSeparator";
 import { formatMessageDate, isSameDay } from "../../lib/formatMessageDate";
+import { useIntersectionObserver } from "../../hooks/useIntersectionObserver";
+import VirtualizedMessageItem from "./VirtualizedMessageItem";
 
 function ChatContainer() {
-  const {
-    selectedUser, getMessagesByUserId, messages: allMessages,
-    isMessagesLoading, subscribeToMessages, unsubscribeFromMessages,
-  } = useChatStore();
-  const { authUser } = useAuthStore();
+  const selectedUser = useChatStore((state) => state.selectedUser);
+  const getMessagesByUserId = useChatStore((state) => state.getMessagesByUserId);
+  const loadMoreMessages = useChatStore((state) => state.loadMoreMessages);
+  const allMessages = useChatStore((state) => state.messages);
+  const isMessagesLoading = useChatStore((state) => state.isMessagesLoading);
+  const subscribeToMessages = useChatStore((state) => state.subscribeToMessages);
+  const unsubscribeFromMessages = useChatStore((state) => state.unsubscribeFromMessages);
+
+  const hasMoreMap = useChatStore((state) => state.hasMore);
+  const isLoadMoreLoadingMap = useChatStore((state) => state.isLoadMoreLoading);
+
+  const hasMore = selectedUser ? hasMoreMap[selectedUser._id] : false;
+  const isLoadMoreLoading = selectedUser ? isLoadMoreLoadingMap[selectedUser._id] : false;
+
+  const authUser = useAuthStore((state) => state.authUser);
   const messageEndRef = useRef(null);
+  const containerRef = useRef(null);
+  const prevScrollHeightRef = useRef(0);
+  const prevSelectedUserRef = useRef(null);
 
   // Derive message list — safe when selectedUser is null
   const messages = useMemo(
@@ -24,7 +39,20 @@ function ChatContainer() {
     [selectedUser, allMessages]
   );
 
-  // All hooks BEFORE the early return (React rules of hooks)
+  // Setup intersection observer for scrolling to top trigger
+  const loaderRef = useIntersectionObserver(
+    () => {
+      if (hasMore && !isLoadMoreLoading && selectedUser) {
+        if (containerRef.current) {
+          prevScrollHeightRef.current = containerRef.current.scrollHeight;
+        }
+        loadMoreMessages(selectedUser._id);
+      }
+    },
+    { threshold: 0.1 }
+  );
+
+  // Initial and subsequent fetch subscriptions
   useEffect(() => {
     if (!selectedUser) return;
     getMessagesByUserId(selectedUser._id);
@@ -32,9 +60,25 @@ function ChatContainer() {
     return () => unsubscribeFromMessages();
   }, [selectedUser, getMessagesByUserId, subscribeToMessages, unsubscribeFromMessages]);
 
+  // Adjust scroll position to prevent jumps during pagination prepends
   useEffect(() => {
-    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (prevScrollHeightRef.current > 0 && containerRef.current) {
+      const addedHeight = containerRef.current.scrollHeight - prevScrollHeightRef.current;
+      containerRef.current.scrollTop = addedHeight;
+      prevScrollHeightRef.current = 0;
+    }
   }, [messages]);
+
+  // Handle auto scrolling to bottom
+  useEffect(() => {
+    if (!selectedUser) return;
+    if (prevSelectedUserRef.current !== selectedUser._id) {
+      prevSelectedUserRef.current = selectedUser._id;
+      messageEndRef.current?.scrollIntoView({ behavior: "auto" });
+    } else {
+      messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, selectedUser]);
 
   if (!selectedUser) {
     return <div className="flex-1" style={{ background: "var(--surface)" }} />;
@@ -44,13 +88,24 @@ function ChatContainer() {
     <div className="flex flex-col h-full" style={{ background: "var(--surface)" }}>
       <ChatHeader />
 
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6" style={{ background: "var(--surface)" }}>
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-y-auto px-4 md:px-8 py-6"
+        style={{ background: "var(--surface)" }}
+      >
         {isMessagesLoading ? (
           <MessagesLoadingSkeleton />
         ) : messages.length === 0 ? (
           <NoChatHistoryPlaceholder name={selectedUser.fullName} />
         ) : (
           <div className="max-w-4xl mx-auto w-full">
+            {/* Top intersection target for cursor pagination */}
+            {hasMore && (
+              <div ref={loaderRef} className="flex justify-center py-4">
+                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--primary) transparent var(--primary) transparent" }} />
+              </div>
+            )}
+
             {messages.map((msg, idx) => {
               const prevMsg = messages[idx - 1];
               const isMe = msg.senderId === authUser._id;
@@ -69,60 +124,62 @@ function ChatContainer() {
                   {isCallMsg ? (
                     <CallSystemMessage msg={msg} authUser={authUser} />
                   ) : (
-                    <div
-                      className={`flex w-full gap-4 ${isMe ? "flex-row-reverse" : "flex-row"}`}
-                      style={{ marginBottom: isSameSender ? "4px" : "24px" }}
-                    >
-                      {/* Fixed-size Avatar Anchor */}
-                      <div className="shrink-0 w-10 mt-1">
-                        {!isSameSender ? (
-                          <div className="w-10 h-10 rounded-full flex-shrink-0 shadow-sm overflow-hidden" style={{ background: "var(--surface-high)" }}>
-                            {isMe && authUser.profilePic ? (
-                              <img src={authUser.profilePic} alt="Me" className="w-full h-full object-cover" />
-                            ) : !isMe && selectedUser.profilePic ? (
-                              <img src={selectedUser.profilePic} alt={selectedUser.fullName} className="w-full h-full object-cover" />
-                            ) : (
-                              <DefaultAvatar size="w-10 h-10" iconSize="w-5 h-5" />
-                            )}
-                          </div>
-                        ) : (
-                          <div className="w-10 h-10" />
-                        )}
-                      </div>
-
-                      {/* Message Content Column */}
-                      <div className={`flex flex-col max-w-[70%] ${isMe ? "items-end" : "items-start"}`}>
-                        {/* Header: Name and Time */}
-                        {!isSameSender && (
-                          <div className={`flex items-center gap-2 mb-1 px-1 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                            <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--on-surface-variant)" }}>
-                              {isMe ? authUser.fullName : selectedUser.fullName}
-                            </span>
-                            <span style={{ fontSize: "0.625rem", fontWeight: 700, color: "var(--outline)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                              {new Date(msg.createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* The Bubble */}
-                        <div
-                          className="p-4 shadow-sm transition-all"
-                          style={{
-                            background: isMe ? "linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%)" : "var(--surface-high)",
-                            color: isMe ? "var(--on-primary)" : "var(--on-surface)",
-                            borderRadius: isMe ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-                            border: !isMe ? "1px solid rgba(255,255,255,0.05)" : "none",
-                          }}
-                        >
-                          {msg.image && <img src={msg.image} alt="Shared" className="rounded-lg max-h-48 object-cover mb-2" />}
-                          {msg.text && (
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                              {msg.text}
-                            </p>
+                    <VirtualizedMessageItem estimatedHeight={msg.image ? 240 : 80}>
+                      <div
+                        className={`flex w-full gap-4 ${isMe ? "flex-row-reverse" : "flex-row"}`}
+                        style={{ marginBottom: isSameSender ? "4px" : "24px" }}
+                      >
+                        {/* Fixed-size Avatar Anchor */}
+                        <div className="shrink-0 w-10 mt-1">
+                          {!isSameSender ? (
+                            <div className="w-10 h-10 rounded-full flex-shrink-0 shadow-sm overflow-hidden" style={{ background: "var(--surface-high)" }}>
+                              {isMe && authUser.profilePic ? (
+                                <img src={authUser.profilePic} alt="Me" className="w-full h-full object-cover" />
+                              ) : !isMe && selectedUser.profilePic ? (
+                                <img src={selectedUser.profilePic} alt={selectedUser.fullName} className="w-full h-full object-cover" />
+                              ) : (
+                                <DefaultAvatar size="w-10 h-10" iconSize="w-5 h-5" />
+                              )}
+                            </div>
+                          ) : (
+                            <div className="w-10 h-10" />
                           )}
                         </div>
+
+                        {/* Message Content Column */}
+                        <div className={`flex flex-col max-w-[70%] ${isMe ? "items-end" : "items-start"}`}>
+                          {/* Header: Name and Time */}
+                          {!isSameSender && (
+                            <div className={`flex items-center gap-2 mb-1 px-1 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                              <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--on-surface-variant)" }}>
+                                {isMe ? authUser.fullName : selectedUser.fullName}
+                              </span>
+                              <span style={{ fontSize: "0.625rem", fontWeight: 700, color: "var(--outline)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                {new Date(msg.createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* The Bubble */}
+                          <div
+                            className="p-4 shadow-sm transition-all"
+                            style={{
+                              background: isMe ? "linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%)" : "var(--surface-high)",
+                              color: isMe ? "var(--on-primary)" : "var(--on-surface)",
+                              borderRadius: isMe ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                              border: !isMe ? "1px solid rgba(255,255,255,0.05)" : "none",
+                            }}
+                          >
+                            {msg.image && <img src={msg.image} alt="Shared" className="rounded-lg max-h-48 object-cover mb-2" />}
+                            {msg.text && (
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                                {msg.text}
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    </VirtualizedMessageItem>
                   )}
                 </div>
               );

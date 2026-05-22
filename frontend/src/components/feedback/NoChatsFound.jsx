@@ -2,7 +2,7 @@ import { MessageSquareIcon } from "lucide-react";
 import { useChatStore } from "../../store/useChatStore";
 
 function NoChatsFound() {
-  const { setActiveTab } = useChatStore();
+  const setActiveTab = useChatStore((state) => state.setActiveTab);
 
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center px-4">
