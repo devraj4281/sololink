@@ -20,11 +20,21 @@ const messageSchema = new mongoose.Schema(
     image: {
       type: String,
     },
+    // ─── Audio / Voice Message ────────────────────────────────────────────────
+    audioUrl: {
+      type: String,
+    },
+    audioDuration: {
+      type: Number, // seconds
+      default: 0,
+    },
+    // ─── Message Type ─────────────────────────────────────────────────────────
     type: {
       type: String,
-      enum: ["text", "image", "call_voice", "call_video"],
+      enum: ["text", "image", "audio", "call_voice", "call_video"],
       default: "text",
     },
+    // ─── Call Metadata ────────────────────────────────────────────────────────
     callDuration: {
       type: Number,
       default: 0,
@@ -34,6 +44,31 @@ const messageSchema = new mongoose.Schema(
       enum: ["completed", "missed", "declined", "cancelled"],
       default: "completed",
     },
+    // ─── Delivery / Read Status ───────────────────────────────────────────────
+    status: {
+      type: String,
+      enum: ["sent", "delivered", "read"],
+      default: "sent",
+    },
+    deliveredAt: { type: Date },
+    readAt: { type: Date },
+    // ─── Emoji Reactions ──────────────────────────────────────────────────────
+    // Stores: { '👍': [userId1, userId2], '❤️': [userId3] }
+    reactions: {
+      type: Map,
+      of: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+      default: () => new Map(),
+    },
+    // ─── Reply Threading ──────────────────────────────────────────────────────
+    replyTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Message",
+      default: null,
+    },
+    // ─── Soft Delete ──────────────────────────────────────────────────────────
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date },
+    deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }
 );
