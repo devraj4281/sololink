@@ -17,6 +17,60 @@ import ReactionBubbles from "./ReactionBubbles";
 import RepliedMessage from "./RepliedMessage";
 import MessageContextMenu from "./MessageContextMenu";
 import AudioPlayer from "./AudioPlayer";
+import { SmilePlus, Reply, Trash2 } from "lucide-react";
+
+// ─── Quick-action hover bar that appears beside each message ─────────────────
+function MessageActions({ isMe, isDeleted, onEmojiClick, onReply, onDelete }) {
+  return (
+    <div
+      className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 shrink-0 self-center"
+      style={{ order: isMe ? -1 : 1 }} // left of bubble for me, right for them
+    >
+      {!isDeleted && (
+        <>
+          {/* Emoji react button */}
+          <button
+            onClick={onEmojiClick}
+            className="w-7 h-7 flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95"
+            style={{
+              background: "var(--surface-high)",
+              color: "var(--on-surface-variant)",
+            }}
+            title="React"
+          >
+            <SmilePlus className="w-3.5 h-3.5" />
+          </button>
+          {/* Reply button */}
+          <button
+            onClick={onReply}
+            className="w-7 h-7 flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95"
+            style={{
+              background: "var(--surface-high)",
+              color: "var(--on-surface-variant)",
+            }}
+            title="Reply"
+          >
+            <Reply className="w-3.5 h-3.5" />
+          </button>
+          {/* Delete button — only for your own messages */}
+          {isMe && (
+            <button
+              onClick={onDelete}
+              className="w-7 h-7 flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95"
+              style={{
+                background: "var(--surface-high)",
+                color: "#ef4444",
+              }}
+              title="Delete"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 function ChatContainer() {
   const selectedUser = useChatStore((state) => state.selectedUser);
@@ -43,21 +97,20 @@ function ChatContainer() {
   const containerRef = useRef(null);
   const prevScrollHeightRef = useRef(0);
   const prevSelectedUserRef = useRef(null);
-  const messageRefs = useRef({}); // messageId → DOM element
-
-  // Context menu state
-  const [contextMenu, setContextMenu] = useState(null); // { x, y, msg }
-  // Reaction picker state
-  const [reactionPicker, setReactionPicker] = useState(null); // { msg, position }
-  // Track which messages have been emitted as read
+  const messageRefs = useRef({});
   const readSentRef = useRef(new Set());
+
+  // Context menu on right-click
+  const [contextMenu, setContextMenu] = useState(null); // { x, y, msg }
+  // Reaction picker (opened via emoji button in hover bar)
+  const [reactionPicker, setReactionPicker] = useState(null); // { msgId, anchorEl }
 
   const messages = useMemo(
     () => (selectedUser ? allMessages[selectedUser._id] || [] : []),
     [selectedUser, allMessages]
   );
 
-  // Setup intersection observer for scrolling to top (pagination)
+  // ── Pagination loader ref ─────────────────────────────────────────────────
   const loaderRef = useIntersectionObserver(
     () => {
       if (hasMore && !isLoadMoreLoading && selectedUser) {
@@ -70,7 +123,7 @@ function ChatContainer() {
     { threshold: 0.1 }
   );
 
-  // Intersection Observer for read receipts
+  // ── Read receipts via IntersectionObserver ────────────────────────────────
   useEffect(() => {
     if (!socket || !selectedUser || !authUser) return;
 
@@ -81,12 +134,11 @@ function ChatContainer() {
           if (!entry.isIntersecting) return;
           const msgId = entry.target.dataset.msgid;
           const senderId = entry.target.dataset.senderid;
-          if (!msgId || senderId === authUser._id) return; // Only mark others' messages
+          if (!msgId || senderId === authUser._id) return;
           if (readSentRef.current.has(msgId)) return;
           readSentRef.current.add(msgId);
           unreadIds.push(msgId);
         });
-
         if (unreadIds.length > 0) {
           socket.emit("message:read", {
             messageIds: unreadIds,
@@ -97,7 +149,6 @@ function ChatContainer() {
       { threshold: 0.6 }
     );
 
-    // Observe all message elements
     Object.values(messageRefs.current).forEach((el) => {
       if (el) observer.observe(el);
     });
@@ -105,17 +156,17 @@ function ChatContainer() {
     return () => observer.disconnect();
   }, [messages, socket, selectedUser, authUser]);
 
-  // Initial and subsequent fetch subscriptions
+  // ── Fetch + subscribe ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!selectedUser) return;
-    readSentRef.current = new Set(); // Reset read tracking on user change
+    readSentRef.current = new Set();
     getMessagesByUserId(selectedUser._id);
     markChatAsRead(selectedUser._id);
     subscribeToMessages();
     return () => unsubscribeFromMessages();
   }, [selectedUser, getMessagesByUserId, subscribeToMessages, unsubscribeFromMessages, markChatAsRead]);
 
-  // Adjust scroll position to prevent jumps during pagination prepends
+  // ── Scroll restore after pagination prepend ───────────────────────────────
   useEffect(() => {
     if (prevScrollHeightRef.current > 0 && containerRef.current) {
       const addedHeight = containerRef.current.scrollHeight - prevScrollHeightRef.current;
@@ -124,7 +175,7 @@ function ChatContainer() {
     }
   }, [messages]);
 
-  // Auto scroll to bottom
+  // ── Auto scroll to bottom on new messages ────────────────────────────────
   useEffect(() => {
     if (!selectedUser) return;
     if (prevSelectedUserRef.current !== selectedUser._id) {
@@ -135,25 +186,54 @@ function ChatContainer() {
     }
   }, [messages, selectedUser]);
 
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleContextMenu = useCallback((e, msg) => {
     e.preventDefault();
     setReactionPicker(null);
     setContextMenu({ x: e.clientX, y: e.clientY, msg });
   }, []);
 
-  const handleReactionToggle = useCallback((messageId, emoji) => {
-    addReaction(messageId, emoji, authUser._id);
-  }, [addReaction, authUser]);
+  const handleReactionToggle = useCallback(
+    (messageId, emoji) => {
+      addReaction(messageId, emoji, authUser._id);
+    },
+    [addReaction, authUser]
+  );
+
+  const handleEmojiButtonClick = useCallback((e, msg) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setContextMenu(null);
+    // Toggle: close if same message is already open
+    setReactionPicker((prev) =>
+      prev?.msgId === msg._id
+        ? null
+        : { msgId: msg._id, anchorRect: rect }
+    );
+  }, []);
 
   const scrollToMessage = useCallback((messageId) => {
     const el = messageRefs.current[messageId];
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
-      el.style.transition = "background 0.3s ease";
+      el.style.transition = "background 0.4s ease";
       el.style.background = "var(--primary-fixed)";
       setTimeout(() => { el.style.background = ""; }, 1200);
     }
   }, []);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const isMe = useCallback(
+    (msg) =>
+      (msg.senderId?._id || msg.senderId)?.toString() === authUser._id?.toString(),
+    [authUser]
+  );
+
+  const normalizeReactions = (reactions) => {
+    if (!reactions) return {};
+    if (typeof reactions.entries === "function") return Object.fromEntries(reactions);
+    return reactions;
+  };
 
   if (!selectedUser) {
     return <div className="flex-1" style={{ background: "var(--surface)" }} />;
@@ -177,21 +257,25 @@ function ChatContainer() {
           <div className="max-w-4xl mx-auto w-full">
             {hasMore && (
               <div ref={loaderRef} className="flex justify-center py-4">
-                <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--primary) transparent var(--primary) transparent" }} />
+                <div
+                  className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin"
+                  style={{ borderColor: "var(--primary) transparent var(--primary) transparent" }}
+                />
               </div>
             )}
 
             {messages.map((msg, idx) => {
               const prevMsg = messages[idx - 1];
-              const isMe = msg.senderId === authUser._id || msg.senderId?._id === authUser._id;
-              const isSameSender = prevMsg && prevMsg.senderId === msg.senderId;
+              const msgIsMe = isMe(msg);
+              const msgSenderId = (msg.senderId?._id || msg.senderId)?.toString();
+              const prevSenderId = prevMsg
+                ? (prevMsg.senderId?._id || prevMsg.senderId)?.toString()
+                : null;
+              const isSameSender = prevSenderId === msgSenderId;
               const isCallMsg = msg.type?.startsWith("call_");
               const showDateSep = !prevMsg || !isSameDay(prevMsg.createdAt, msg.createdAt);
-              const reactions = msg.reactions
-                ? typeof msg.reactions.entries === "function"
-                  ? Object.fromEntries(msg.reactions)
-                  : msg.reactions
-                : {};
+              const reactions = normalizeReactions(msg.reactions);
+              const hasReactions = Object.values(reactions).some((arr) => arr?.length > 0);
 
               return (
                 <div key={msg._id}>
@@ -201,65 +285,79 @@ function ChatContainer() {
                     <CallSystemMessage msg={msg} authUser={authUser} />
                   ) : (
                     <VirtualizedMessageItem estimatedHeight={msg.image ? 240 : msg.audioUrl ? 100 : 80}>
+                      {/* Outer row: avatar + [actions] + bubble */}
                       <div
                         ref={(el) => { if (el) messageRefs.current[msg._id] = el; }}
                         data-msgid={msg._id}
-                        data-senderid={typeof msg.senderId === "object" ? msg.senderId._id : msg.senderId}
-                        className={`flex w-full gap-4 ${isMe ? "flex-row-reverse" : "flex-row"} group`}
-                        style={{ marginBottom: isSameSender ? "4px" : "24px" }}
+                        data-senderid={msgSenderId}
+                        className={`flex w-full gap-2 ${msgIsMe ? "flex-row-reverse" : "flex-row"} group`}
+                        style={{ marginBottom: isSameSender ? "4px" : "20px", alignItems: "flex-end" }}
                         onContextMenu={(e) => handleContextMenu(e, msg)}
                       >
                         {/* Avatar */}
-                        <div className="shrink-0 w-10 mt-1">
+                        <div className="shrink-0 w-9">
                           {!isSameSender ? (
-                            <div className="w-10 h-10 rounded-full flex-shrink-0 shadow-sm overflow-hidden" style={{ background: "var(--surface-high)" }}>
-                              {isMe && authUser.profilePic ? (
+                            <div
+                              className="w-9 h-9 rounded-full overflow-hidden shadow-sm"
+                              style={{ background: "var(--surface-high)" }}
+                            >
+                              {msgIsMe && authUser.profilePic ? (
                                 <img src={authUser.profilePic} alt="Me" className="w-full h-full object-cover" />
-                              ) : !isMe && selectedUser.profilePic ? (
+                              ) : !msgIsMe && selectedUser.profilePic ? (
                                 <img src={selectedUser.profilePic} alt={selectedUser.fullName} className="w-full h-full object-cover" />
                               ) : (
-                                <DefaultAvatar size="w-10 h-10" iconSize="w-5 h-5" />
+                                <DefaultAvatar size="w-9 h-9" iconSize="w-4 h-4" />
                               )}
                             </div>
                           ) : (
-                            <div className="w-10 h-10" />
+                            <div className="w-9 h-9" />
                           )}
                         </div>
 
-                        {/* Message Content Column */}
-                        <div className={`flex flex-col max-w-[70%] ${isMe ? "items-end" : "items-start"}`}>
-                          {/* Header: Name + Time */}
+                        {/* ── Hover action bar ── */}
+                        <MessageActions
+                          isMe={msgIsMe}
+                          isDeleted={!!msg.isDeleted}
+                          onEmojiClick={(e) => handleEmojiButtonClick(e, msg)}
+                          onReply={() => setReplyingTo(msg)}
+                          onDelete={() => deleteMessage(msg._id)}
+                        />
+
+                        {/* ── Bubble column ── */}
+                        <div
+                          className={`flex flex-col max-w-[68%] ${msgIsMe ? "items-end" : "items-start"}`}
+                        >
+                          {/* Sender name + time header */}
                           {!isSameSender && (
-                            <div className={`flex items-center gap-2 mb-1 px-1 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                            <div className={`flex items-center gap-2 mb-1 px-1 ${msgIsMe ? "flex-row-reverse" : "flex-row"}`}>
                               <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--on-surface-variant)" }}>
-                                {isMe ? authUser.fullName : selectedUser.fullName}
+                                {msgIsMe ? authUser.fullName : selectedUser.fullName}
                               </span>
-                              <span style={{ fontSize: "0.625rem", fontWeight: 700, color: "var(--outline)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                              <span style={{ fontSize: "0.625rem", color: "var(--outline)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                                 {new Date(msg.createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
                               </span>
                             </div>
                           )}
 
-                          {/* The Bubble */}
+                          {/* Bubble */}
                           <div
-                            className="p-4 shadow-sm transition-all relative"
+                            className="px-4 py-3 shadow-sm relative"
                             style={{
                               background: msg.isDeleted
                                 ? "var(--surface-high)"
-                                : isMe
+                                : msgIsMe
                                   ? "linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%)"
                                   : "var(--surface-high)",
-                              color: isMe && !msg.isDeleted ? "var(--on-primary)" : "var(--on-surface)",
-                              borderRadius: isMe ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-                              border: !isMe ? "1px solid rgba(255,255,255,0.05)" : "none",
-                              opacity: msg.isDeleted ? 0.65 : 1,
+                              color: msgIsMe && !msg.isDeleted ? "var(--on-primary)" : "var(--on-surface)",
+                              borderRadius: msgIsMe ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                              opacity: msg.isDeleted ? 0.6 : 1,
                             }}
                           >
-                            {/* Replied-to context */}
+                            {/* Replied-to context inside bubble */}
                             {msg.replyTo && !msg.isDeleted && (
                               <RepliedMessage
                                 replyTo={msg.replyTo}
-                                isMe={isMe}
+                                isMe={msgIsMe}
                                 onJump={() => scrollToMessage(msg.replyTo._id || msg.replyTo)}
                               />
                             )}
@@ -270,20 +368,28 @@ function ChatContainer() {
                               </p>
                             ) : (
                               <>
-                                {msg.image && <img src={msg.image} alt="Shared" className="rounded-lg max-h-48 object-cover mb-2" />}
+                                {msg.image && (
+                                  <img
+                                    src={msg.image}
+                                    alt="Shared"
+                                    className="rounded-xl max-h-52 object-cover mb-2 w-full"
+                                  />
+                                )}
                                 {msg.audioUrl && (
                                   <AudioPlayer audioUrl={msg.audioUrl} duration={msg.audioDuration} />
                                 )}
                                 {msg.text && (
-                                  <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
+                                  <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                                    {msg.text}
+                                  </p>
                                 )}
                               </>
                             )}
 
-                            {/* Time + Status row (for sender) */}
-                            {isMe && !msg.isDeleted && (
-                              <div className="flex items-center justify-end gap-1 mt-1">
-                                <span style={{ fontSize: "0.6rem", opacity: 0.6 }}>
+                            {/* Time + status (sender only, non-deleted) */}
+                            {msgIsMe && !msg.isDeleted && (
+                              <div className="flex items-center justify-end gap-1 mt-1.5">
+                                <span style={{ fontSize: "0.6rem", opacity: 0.65 }}>
                                   {new Date(msg.createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
                                 </span>
                                 <MessageStatusIcon status={msg.status} />
@@ -291,8 +397,8 @@ function ChatContainer() {
                             )}
                           </div>
 
-                          {/* Reactions */}
-                          {!msg.isDeleted && (
+                          {/* Reaction bubbles below bubble */}
+                          {hasReactions && (
                             <ReactionBubbles
                               reactions={reactions}
                               myId={authUser._id}
@@ -302,13 +408,20 @@ function ChatContainer() {
                         </div>
                       </div>
 
-                      {/* Reaction Picker (positioned near message) */}
-                      {reactionPicker?.msg._id === msg._id && (
-                        <div className="relative">
+                      {/* ── Inline Reaction Picker (portaled near emoji button) ── */}
+                      {reactionPicker?.msgId === msg._id && (
+                        <div
+                          className="flex justify-center mt-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <ReactionPicker
-                            position={reactionPicker.position}
-                            onReact={(emoji) => handleReactionToggle(msg._id, emoji)}
+                            position={null}  // inline mode — no absolute positioning
+                            onReact={(emoji) => {
+                              handleReactionToggle(msg._id, emoji);
+                              setReactionPicker(null);
+                            }}
                             onClose={() => setReactionPicker(null)}
+                            inline
                           />
                         </div>
                       )}
@@ -322,15 +435,19 @@ function ChatContainer() {
         )}
       </div>
 
-      {/* Context Menu */}
+      {/* Right-click context menu */}
       {contextMenu && (
         <MessageContextMenu
           position={{ x: contextMenu.x, y: contextMenu.y }}
-          isMe={contextMenu.msg.senderId === authUser._id || contextMenu.msg.senderId?._id === authUser._id}
+          isMe={isMe(contextMenu.msg)}
           isDeleted={contextMenu.msg.isDeleted}
-          onReply={() => setReplyingTo(contextMenu.msg)}
-          onDelete={() => deleteMessage(contextMenu.msg._id)}
-          onCopy={contextMenu.msg.text ? () => navigator.clipboard.writeText(contextMenu.msg.text) : null}
+          onReply={() => { setReplyingTo(contextMenu.msg); setContextMenu(null); }}
+          onDelete={() => { deleteMessage(contextMenu.msg._id); setContextMenu(null); }}
+          onCopy={
+            contextMenu.msg.text
+              ? () => { navigator.clipboard.writeText(contextMenu.msg.text); setContextMenu(null); }
+              : null
+          }
           onClose={() => setContextMenu(null)}
         />
       )}

@@ -3,10 +3,12 @@ import { useEffect, useRef } from "react";
 const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
 /**
- * Floating emoji picker that appears on hover/long-press near a message.
- * position: { top, left } CSS coordinates
+ * Floating emoji picker.
+ * - When `inline` is true: renders as a regular flex row (no absolute positioning),
+ *   used inline below the message bubble.
+ * - When `inline` is false/undefined: renders absolutely at `position`.
  */
-function ReactionPicker({ onReact, onClose, position }) {
+function ReactionPicker({ onReact, onClose, position, inline }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -19,26 +21,35 @@ function ReactionPicker({ onReact, onClose, position }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
 
-  return (
-    <div
-      ref={ref}
-      className="absolute z-50 flex items-center gap-1 p-1.5 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2"
-      style={{
-        background: "var(--surface-lowest)",
-        border: "1px solid var(--surface-high)",
+  const containerStyle = inline
+    ? {}
+    : {
+        position: "absolute",
         top: position?.top,
         left: position?.left,
         transform: "translateY(-100%)",
+        zIndex: 50,
+      };
+
+  return (
+    <div
+      ref={ref}
+      className="flex items-center gap-1 p-1.5 rounded-full shadow-xl animate-in fade-in slide-in-from-bottom-2"
+      style={{
+        ...containerStyle,
+        background: "var(--surface-lowest)",
+        border: "1px solid var(--surface-high)",
       }}
+      onClick={(e) => e.stopPropagation()}
     >
       {QUICK_REACTIONS.map((emoji) => (
         <button
           key={emoji}
           onClick={() => {
             onReact(emoji);
-            onClose();
           }}
-          className="w-8 h-8 flex items-center justify-center rounded-full text-lg hover:scale-125 transition-transform active:scale-90"
+          className="w-9 h-9 flex items-center justify-center rounded-full text-lg hover:scale-125 transition-transform active:scale-90"
+          style={{ fontSize: "1.25rem" }}
           title={emoji}
         >
           {emoji}
