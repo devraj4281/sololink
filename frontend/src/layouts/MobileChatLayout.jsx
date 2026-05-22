@@ -8,7 +8,7 @@ import { MessageSquareIcon, UsersIcon, PhoneIcon, SettingsIcon, SunIcon, MoonIco
 import { useTheme } from "../hooks/useTheme";
 
 function MobileChatLayout() {
-  const { selectedUser } = useChatStore();
+  const selectedUser = useChatStore((state) => state.selectedUser);
   const { isDark, toggle: toggleTheme } = useTheme();
   const [currentTab, setCurrentTab] = useState("chats");
 
@@ -26,10 +26,10 @@ function MobileChatLayout() {
 
       {/* ── LIST PANEL — slides out left when chat is open ── */}
       <div
-        className="absolute inset-0 flex flex-col transition-transform duration-300"
+        className="absolute inset-0 flex flex-col"
         style={{
           transform: isChat ? "translateX(-100%)" : "translateX(0)",
-          transitionTimingFunction: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+          transition: "transform 600ms cubic-bezier(0.16, 1, 0.3, 1)",
           background: "var(--surface)",
         }}
       >
@@ -96,10 +96,10 @@ function MobileChatLayout() {
 
       {/* ── CHAT PANEL — slides in from right when chat is open ── */}
       <div
-        className="absolute inset-0 flex flex-col transition-transform duration-300"
+        className="absolute inset-0 flex flex-col"
         style={{
           transform: isChat ? "translateX(0)" : "translateX(100%)",
-          transitionTimingFunction: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+          transition: "transform 600ms cubic-bezier(0.16, 1, 0.3, 1)",
           background: "var(--surface-lowest)",
         }}
       >

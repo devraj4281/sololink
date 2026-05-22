@@ -23,9 +23,13 @@ const S = {
 };
 
 function DesktopChatLayout() {
-  const { selectedUser } = useChatStore();
-  const { authUser, logout, updateProfile } = useAuthStore();
-  const { isSoundEnabled, toggleSound } = useChatStore();
+  const selectedUser = useChatStore((state) => state.selectedUser);
+  const isSoundEnabled = useChatStore((state) => state.isSoundEnabled);
+  const toggleSound = useChatStore((state) => state.toggleSound);
+
+  const authUser = useAuthStore((state) => state.authUser);
+  const logout = useAuthStore((state) => state.logout);
+  const updateProfile = useAuthStore((state) => state.updateProfile);
   const { isDark, toggle: toggleTheme } = useTheme();
   const [currentTab, setCurrentTab] = useState("chats");
   const [selectedImg, setSelectedImg] = useState(null);
