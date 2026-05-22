@@ -338,7 +338,7 @@ function ChatContainer() {
                           isMe={msgIsMe}
                           isDeleted={!!msg.isDeleted}
                           onEmojiClick={(e) => handleEmojiButtonClick(e, msg)}
-                          onReply={() => setReplyingTo(msg)}
+                          onReply={() => handleReply(msg)}
                           onDelete={() => deleteMessage(msg._id)}
                         />
 

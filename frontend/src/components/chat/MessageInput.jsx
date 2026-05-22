@@ -83,6 +83,7 @@ function MessageInput() {
       try {
         await sendMessage({
           audio: base64Audio,
+          audioUrl: base64Audio,
           audioDuration: durationSecs,
         });
       } catch (err) {
