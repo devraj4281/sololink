@@ -1,16 +1,17 @@
 import { Navigate, Route, Routes } from "react-router";
-import ChatPage from "./pages/ChatPage";
-import LoginPage from "./pages/LoginPage";
-import SignUpPage from "./pages/SignUpPage";
+import { lazy, Suspense, useEffect } from "react";
 import { useAuthStore } from "./store/useAuthStore";
 import { useCallStore } from "./store/useCallStore";
-import { useEffect } from "react";
 import PageLoader from "./components/ui/PageLoader";
 import { Toaster } from "react-hot-toast";
 import IncomingCallModal from "./components/calls/IncomingCallModal";
 import CallScreen from "./components/calls/CallScreen";
 import CallScreenMinimized from "./components/calls/CallScreenMinimized";
 import ReconnectModal from "./components/calls/ReconnectModal";
+
+const ChatPage = lazy(() => import("./pages/ChatPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const SignUpPage = lazy(() => import("./pages/SignUpPage"));
 
 function App() {
   const { checkAuth, isCheckingAuth, authUser, socket } = useAuthStore();
@@ -63,11 +64,13 @@ function App() {
 
   return (
     <div className="h-screen w-full bg-vbg overflow-hidden">
-      <Routes>
-        <Route path="/" element={authUser ? <ChatPage /> : <Navigate to={"/login"} />} />
-        <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to={"/"} />} />
-        <Route path="/signup" element={!authUser ? <SignUpPage /> : <Navigate to={"/"} />} />
-      </Routes>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/" element={authUser ? <ChatPage /> : <Navigate to={"/login"} />} />
+          <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to={"/"} />} />
+          <Route path="/signup" element={!authUser ? <SignUpPage /> : <Navigate to={"/"} />} />
+        </Routes>
+      </Suspense>
       <Toaster position="top-center" toastOptions={{ style: { fontFamily: "Inter, sans-serif" } }} />
       {authUser && <IncomingCallModal />}
       {authUser && <CallScreen />}
