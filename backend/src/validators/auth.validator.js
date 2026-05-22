@@ -30,6 +30,20 @@ export const loginSchema = z.object({
 
 export const updateProfileSchema = z.object({
   profilePic: z
-    .string({ required_error: "Profile picture is required" })
-    .min(10, "Invalid profile picture payload"),
+    .string()
+    .min(10, "Invalid profile picture payload")
+    .optional(),
+  fullName: z
+    .string()
+    .min(2, "Full name must be at least 2 characters")
+    .max(50, "Full name cannot exceed 50 characters")
+    .trim()
+    .optional(),
+  email: z
+    .string()
+    .email("Invalid email format")
+    .trim()
+    .toLowerCase()
+    .optional(),
 });
+

@@ -188,6 +188,35 @@ export const markAsRead = catchAsync(async (req, res) => {
 
   await conversationRepository.markAsRead(myId.toString(), partnerId);
 
+  // Batch update all "sent" or "delivered" messages from partnerId to myId to "read" status
+  try {
+    const unreadMessages = await Message.find({
+      senderId: partnerId,
+      receiverId: myId,
+      status: { $ne: "read" },
+    });
+
+    if (unreadMessages.length > 0) {
+      const now = new Date();
+      await Message.updateMany(
+        { senderId: partnerId, receiverId: myId, status: { $ne: "read" } },
+        { $set: { status: "read", readAt: now } }
+      );
+
+      const messageIds = unreadMessages.map((msg) => msg._id.toString());
+      const senderSocketId = getReceiverSocketId(partnerId);
+      if (senderSocketId) {
+        io.to(senderSocketId).emit("message:status-updated-bulk", {
+          messageIds,
+          status: "read",
+          readAt: now,
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error batch updating messages to read:", err);
+  }
+
   // Notify the sender that their messages have been read
   const senderSocketId = getReceiverSocketId(partnerId);
   if (senderSocketId) {
@@ -196,6 +225,7 @@ export const markAsRead = catchAsync(async (req, res) => {
 
   res.status(200).json({ success: true });
 });
+
 
 export const getChatPartners = catchAsync(async (req, res) => {
   const loggedInUserId = req.user._id;

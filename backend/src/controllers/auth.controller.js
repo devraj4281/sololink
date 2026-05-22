@@ -74,18 +74,44 @@ export const logout = (req, res) => {
 };
 
 export const updateProfile = catchAsync(async (req, res) => {
-  const { profilePic } = req.body;
+  const { profilePic, fullName, email } = req.body;
   const userId = req.user._id;
 
-  const uploadResponse = await cloudinary.uploader.upload(profilePic);
+  const updates = {};
+  if (profilePic) {
+    const uploadResponse = await cloudinary.uploader.upload(profilePic);
+    updates.profilePic = uploadResponse.secure_url;
+  }
+  if (fullName) {
+    updates.fullName = fullName;
+  }
+  if (email) {
+    const lowerEmail = email.toLowerCase();
+    if (lowerEmail !== req.user.email) {
+      const emailExists = await userRepository.exists({ email: lowerEmail });
+      if (emailExists) {
+        throw new AppError("Email is already taken by another user", 400);
+      }
+      updates.email = lowerEmail;
+    }
+  }
 
-  const updatedUser = await userRepository.findByIdAndUpdate(
-    userId,
-    { profilePic: uploadResponse.secure_url }
-  );
+  if (Object.keys(updates).length === 0) {
+    throw new AppError("No update fields provided", 400);
+  }
 
-  res.status(200).json(updatedUser);
+  const updatedUser = await userRepository.findByIdAndUpdate(userId, updates);
+
+  res.status(200).json({
+    _id: updatedUser._id,
+    fullName: updatedUser.fullName,
+    email: updatedUser.email,
+    profilePic: updatedUser.profilePic,
+    createdAt: updatedUser.createdAt,
+    updatedAt: updatedUser.updatedAt,
+  });
 });
+
 
 export const refresh = catchAsync(async (req, res) => {
   const refreshToken = req.cookies.jwt_refresh;

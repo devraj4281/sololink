@@ -19,10 +19,22 @@ export const useChatStore = create((set, get) => ({
   typingUsers: [],
   isSoundEnabled: JSON.parse(localStorage.getItem("isSoundEnabled")) === true,
   replyingTo: null, // Message being replied to
+  contactNicknames: JSON.parse(localStorage.getItem("contactNicknames") || "{}"),
 
   toggleSound: () => {
     localStorage.setItem("isSoundEnabled", !get().isSoundEnabled);
     set({ isSoundEnabled: !get().isSoundEnabled });
+  },
+
+  setContactNickname: (userId, nickname) => {
+    const updated = { ...get().contactNicknames };
+    if (!nickname || nickname.trim() === "") {
+      delete updated[userId];
+    } else {
+      updated[userId] = nickname.trim();
+    }
+    localStorage.setItem("contactNicknames", JSON.stringify(updated));
+    set({ contactNicknames: updated });
   },
 
   setActiveTab: (tab) => set({ activeTab: tab }),

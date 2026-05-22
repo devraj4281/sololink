@@ -85,6 +85,42 @@ io.on("connection", async (socket) => {
   User.findByIdAndUpdate(userId, { isOnline: true }).catch(() => {});
   io.emit("user:online", userId);
 
+  // Batch update "sent" messages received by this user to "delivered"
+  try {
+    const sentMessages = await Message.find({ receiverId: userId, status: "sent" });
+    if (sentMessages.length > 0) {
+      const now = new Date();
+      await Message.updateMany(
+        { receiverId: userId, status: "sent" },
+        { $set: { status: "delivered", deliveredAt: now } }
+      );
+
+      // Group message IDs by their sender to notify them in batches
+      const senderGroups = {};
+      sentMessages.forEach((msg) => {
+        const senderIdStr = msg.senderId.toString();
+        if (!senderGroups[senderIdStr]) {
+          senderGroups[senderIdStr] = [];
+        }
+        senderGroups[senderIdStr].push(msg._id.toString());
+      });
+
+      for (const [senderIdStr, messageIds] of Object.entries(senderGroups)) {
+        const senderSocketId = getReceiverSocketId(senderIdStr);
+        if (senderSocketId) {
+          io.to(senderSocketId).emit("message:status-updated-bulk", {
+            messageIds,
+            status: "delivered",
+            deliveredAt: now,
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error batch updating sent messages to delivered on user connect:", err);
+  }
+
+
   // ─── Disconnect ───────────────────────────────────────────────────────────
   socket.on("disconnect", async () => {
     console.log("A user disconnected", socket.user?.fullName);
