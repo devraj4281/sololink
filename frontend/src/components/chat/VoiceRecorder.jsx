@@ -58,7 +58,8 @@ function VoiceRecorder({ onSend, onCancel }) {
       };
 
       recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: mimeType });
+
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         blobRef.current = blob;
         setHasRecording(true);
         stream.getTracks().forEach((t) => t.stop());

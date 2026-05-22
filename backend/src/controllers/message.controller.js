@@ -58,7 +58,9 @@ export const sendMessage = catchAsync(async (req, res) => {
       resource_type: "video", // Cloudinary uses 'video' for audio files
       folder: "voice_messages",
     });
-    audioUrl = uploadResponse.secure_url;
+    // Change extension to .mp3 so Cloudinary transcodes it on-the-fly when requested.
+    // This fixes "Unsupported source URL" errors for .mkv or .webm files on certain browsers (like Safari).
+    audioUrl = uploadResponse.secure_url.replace(/\.[^/.]+$/, ".mp3");
   }
 
   // Determine message type
